@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>农眼AI - 智能种植助手</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+* { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; overflow-x: hidden; }
+.page { display: none; min-height: 100vh; animation: fadeIn 0.3s ease-out; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes scan { 0%,100% { top: 0; } 50% { top: 100%; } }
+@keyframes pulse-ring { 0% { transform: scale(0.85); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
+.scan-line { position: absolute; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #4ade80, transparent); box-shadow: 0 0 15px #4ade80; animation: scan 2s ease-in-out infinite; }
+.pulse-ring { animation: pulse-ring 1.8s ease-out infinite; }
+.gradient-bg { background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%); }
+.glass { background: rgba(255,255,255,0.9); backdrop-filter: blur(20px); }
+.card-shadow { box-shadow: 0 2px 12px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.1); }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.btn-press:active { transform: scale(0.97); }
+.toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); background: rgba(0,0,0,0.75); color: white; padding: 12px 24px; border-radius: 12px; font-size: 14px; z-index: 9999; opacity: 0; transition: all 0.3s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+.modal-overlay.show { opacity: 1; pointer-events: auto; }
+.modal-content { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-radius: 24px 24px 0 0; z-index: 101; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+.modal-overlay.show + .modal-content, .modal-content.show { transform: translateY(0); }
+.bottom-nav-item { transition: all 0.2s; }
+.bottom-nav-item.active { color: #059669; }
+.tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+</style>
+</head>
+<body class="hide-scrollbar">
+<div id="toast" class="toast"></div>
+
+<!-- 首页 -->
+<div id="page-home" class="page active">
+<div class="gradient-bg text-white px-5 pt-12 pb-8 relative overflow-hidden">
+  <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3"></div>
+  <div class="relative flex items-center justify-between mb-5">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 bg-white/15 rounded-2xl flex items-center justify-center"><i class="fas fa-seedling text-xl"></i></div>
+      <div><h1 class="font-bold text-lg tracking-wide">农眼AI</h1><p class="text-xs text-white/60">智能种植助手</p></div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button onclick="goPage('page-notify')" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center relative btn-press"><i class="fas fa-bell text-sm"></i><span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-400 rounded-full"></span></button>
+      <button onclick="goPage('page-profile')" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center btn-press overflow-hidden"><img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face" class="w-full h-full object-cover"></button>
+    </div>
+  </div>
+  <div class="relative bg-white/10 rounded-2xl p-4 backdrop-blur-md border border-white/10">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-14 h-14 bg-gradient-to-br from-yellow-300 to-orange-400 rounded-2xl flex items-center justify-center shadow-lg"><i class="fas fa-cloud-sun text-white text-2xl"></i></div>
+        <div><p class="text-3xl font-bold">24&deg;C</p><p class="text-xs text-white/60 mt-0.5">建德市大洋镇 &middot; 多云转晴</p></div>
+      </div>
+      <div class="text-right space-y-1">
+        <div class="flex items-center gap-1.5 justify-end"><i class="fas fa-tint text-blue-300 text-xs"></i><span class="text-xs text-white/70">湿度 68%</span></div>
+        <div class="flex items-center gap-1.5 justify-end"><i class="fas fa-wind text-green-300 text-xs"></i><span class="text-xs text-white/70">东南风 2级</span></div>
+      </div>
+    </div>
+    <div class="flex justify-around mt-4 pt-3 border-t border-white/10">
+      <div class="text-center"><p class="text-xs text-white/50">明天</p><i class="fas fa-sun text-yellow-300 text-sm my-1"></i><p class="text-xs text-white/80">26&deg;</p></div>
+      <div class="text-center"><p class="text-xs text-white/50">后天</p><i class="fas fa-cloud-rain text-blue-300 text-sm my-1"></i><p class="text-xs text-white/80">22&deg;</p></div>
+      <div class="text-center"><p class="text-xs text-white/50">周五</p><i class="fas fa-cloud text-gray-300 text-sm my-1"></i><p class="text-xs text-white/80">23&deg;</p></div>
+    </div>
+  </div>
+</div>
+
+<div class="px-4 -mt-4 relative z-10">
+  <div class="bg-white rounded-2xl card-shadow p-5 mb-4 slide-up">
+    <div class="flex items-center gap-4 mb-5">
+      <div class="relative">
+        <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center shadow-lg"><i class="fas fa-camera text-white text-2xl"></i></div>
+        <div class="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center"><i class="fas fa-fire text-white text-[10px]"></i></div>
+      </div>
+      <div class="flex-1">
+        <h2 class="font-bold text-gray-800 text-lg">AI 拍照识别</h2>
+        <p class="text-xs text-gray-500 mt-1">拍一拍，3秒识别病虫害，获取精准用药方案</p>
+      </div>
+    </div>
+    <button onclick="goPage('page-upload')" class="w-full gradient-bg text-white font-semibold py-4 rounded-xl text-sm shadow-lg btn-press flex items-center justify-center gap-2"><i class="fas fa-camera"></i> 立即拍照识别</button>
+    <div class="flex gap-3 mt-4">
+      <div class="flex-1 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3 text-center border border-green-100"><p class="text-xl font-bold text-green-700">200+</p><p class="text-[11px] text-green-600 mt-0.5">病虫害库</p></div>
+      <div class="flex-1 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 text-center border border-blue-100"><p class="text-xl font-bold text-blue-700">88.5%</p><p class="text-[11px] text-blue-600 mt-0.5">识别准确率</p></div>
+      <div class="flex-1 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-3 text-center border border-orange-100"><p class="text-xl font-bold text-orange-700">320+</p><p class="text-[11px] text-orange-600 mt-0.5">农户使用</p></div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-4 gap-2.5 mb-4">
+    <button onclick="goPage('page-fertilizer')" class="bg-white rounded-xl p-3 text-center card-shadow btn-press"><div class="w-11 h-11 bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl flex items-center justify-center mx-auto mb-2"><i class="fas fa-flask text-blue-500 text-lg"></i></div><p class="text-xs text-gray-700 font-medium">水肥推荐</p></button>
+    <button onclick="goPage('page-environment')" class="bg-white rounded-xl p-3 text-center card-shadow btn-press"><div class="w-11 h-11 bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl flex items-center justify-center mx-auto mb-2"><i class="fas fa-temperature-high text-orange-500 text-lg"></i></div><p class="text-xs text-gray-700 font-medium">环境预警</p></button>
+    <button onclick="goPage('page-wiki')" class="bg-white rounded-xl p-3 text-center card-shadow btn-press"><div class="w-11 h-11 bg-gradient-to-br from-purple-100 to-purple-50 rounded-xl flex items-center justify-center mx-auto mb-2"><i class="fas fa-book text-purple-500 text-lg"></i></div><p class="text-xs text-gray-700 font-medium">种植百科</p></button>
+    <button onclick="goPage('page-wiki')" class="bg-white rounded-xl p-3 text-center card-shadow btn-press"><div class="w-11 h-11 bg-gradient-to-br from-pink-100 to-pink-50 rounded-xl flex items-center justify-center mx-auto mb-2"><i class="fas fa-book text-pink-500 text-lg"></i></div><p class="text-xs text-gray-700 font-medium">种植百科</p></button>
+  </div>
+
+  <div class="bg-white rounded-2xl card-shadow p-4 mb-4">
+    <div class="flex items-center justify-between mb-3"><div class="flex items-center gap-2"><i class="fas fa-warehouse text-green-600"></i><h3 class="font-bold text-gray-800">我的大棚</h3></div><span class="text-xs text-gray-400">管理 2 个大棚</span></div>
+    <div class="space-y-3">
+      <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-green-50 to-white rounded-xl border border-green-100">
+        <img src="https://images.unsplash.com/photo-1592841200221-a6898f307baa?w=100&h=100&fit=crop" class="w-14 h-14 rounded-xl object-cover">
+        <div class="flex-1"><div class="flex items-center gap-2"><p class="font-medium text-gray-800 text-sm">1号大棚 &middot; 番茄</p><span class="w-2 h-2 bg-green-500 rounded-full"></span></div><p class="text-xs text-gray-500 mt-1">生长期 45天 &middot; 预计 15天后采收</p><div class="flex gap-2 mt-2"><span class="tag bg-green-100 text-green-700">健康</span><span class="tag bg-blue-100 text-blue-700">温度适宜</span></div></div>
+        <i class="fas fa-chevron-right text-gray-300"></i>
+      </div>
+      <div class="flex items-center gap-3 p-3 bg-gradient-to-r from-yellow-50 to-white rounded-xl border border-yellow-100">
+        <img src="https://images.unsplash.com/photo-1561136594-7f68413baa99?w=100&h=100&fit=crop" class="w-14 h-14 rounded-xl object-cover">
+        <div class="flex-1"><div class="flex items-center gap-2"><p class="font-medium text-gray-800 text-sm">2号大棚 &middot; 黄瓜</p><span class="w-2 h-2 bg-yellow-500 rounded-full"></span></div><p class="text-xs text-gray-500 mt-1">生长期 30天 &middot; 湿度偏高需注意</p><div class="flex gap-2 mt-2"><span class="tag bg-yellow-100 text-yellow-700">需注意</span><span class="tag bg-orange-100 text-orange-700">湿度68%</span></div></div>
+        <i class="fas fa-chevron-right text-gray-300"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl card-shadow p-4 mb-4">
+    <div class="flex items-center justify-between mb-3"><div class="flex items-center gap-2"><i class="fas fa-clock-rotate-left text-blue-600"></i><h3 class="font-bold text-gray-800">最近识别</h3></div><button onclick="goPage('page-history')" class="text-xs text-green-600 font-medium">查看全部 <i class="fas fa-arrow-right text-[10px]"></i></button></div>
+    <div class="space-y-2.5">
+      <div class="flex items-center gap-3 p-2.5 bg-gray-50 rounded-xl hover:bg-green-50 transition-colors cursor-pointer"><img src="https://images.unsplash.com/photo-1592841200221-a6898f307baa?w=100&h=100&fit=crop" class="w-12 h-12 rounded-lg object-cover"><div class="flex-1"><p class="text-sm font-medium text-gray-800">番茄早疫病</p><p class="text-xs text-gray-500">识别准确率 91% &middot; 2天前</p></div><span class="tag bg-green-100 text-green-700">已解决</span></div>
+      <div class="flex items-center gap-3 p-2.5 bg-gray-50 rounded-xl hover:bg-yellow-50 transition-colors cursor-pointer"><img src="https://images.unsplash.com/photo-1561136594-7f68413baa99?w=100&h=100&fit=crop" class="w-12 h-12 rounded-lg object-cover"><div class="flex-1"><p class="text-sm font-medium text-gray-800">黄瓜霜霉病</p><p class="text-xs text-gray-500">识别准确率 87% &middot; 5天前</p></div><span class="tag bg-yellow-100 text-yellow-700">处理中</span></div>
+    </div>
+  </div>
+
+  <div class="bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 rounded-2xl p-4 mb-20 border border-amber-100">
+    <div class="flex items-start gap-3"><div class="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-400 rounded-xl flex items-center justify-center shrink-0"><i class="fas fa-lightbulb text-white"></i></div><div><p class="font-bold text-amber-800 text-sm mb-1">今日农技小贴士</p><p class="text-xs text-amber-700 leading-relaxed">当前季节番茄易发白粉病，建议每隔7-10天喷施一次预防性杀菌剂，注意通风降湿，避免大水漫灌。雨后及时巡查，发现病叶立即摘除。</p></div></div>
+  </div>
+</div>
+
+<div class="fixed bottom-0 left-0 right-0 glass border-t border-gray-200/60 flex justify-around py-2 pb-safe z-50">
+  <button class="bottom-nav-item active flex flex-col items-center gap-0.5 py-1 px-4 text-green-600" onclick="switchTab('home')"><i class="fas fa-home text-lg"></i><span class="text-[11px] font-medium">首页</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('history')"><i class="fas fa-clock-rotate-left text-lg"></i><span class="text-[11px]">记录</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('wiki')"><i class="fas fa-book text-lg"></i><span class="text-[11px]">百科</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('profile')"><i class="fas fa-user text-lg"></i><span class="text-[11px]">我的</span></button>
+</div>
+</div>
+
+<!-- 拍照上传 -->
+<div id="page-upload" class="page bg-gray-50">
+<div class="gradient-bg text-white px-5 pt-12 pb-8 relative">
+  <div class="relative flex items-center gap-3">
+    <button onclick="goPage('page-home')" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center btn-press"><i class="fas fa-arrow-left text-sm"></i></button>
+    <h1 class="font-bold text-lg">拍照识别</h1>
+  </div>
+</div>
+<div class="px-4 pt-6 pb-24">
+  <div class="bg-white rounded-2xl card-shadow p-6 mb-5 text-center">
+    <div class="relative w-24 h-24 mx-auto mb-5">
+      <div class="absolute inset-0 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full opacity-20 pulse-ring"></div>
+      <div class="absolute inset-2 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full opacity-10 pulse-ring" style="animation-delay:0.5s"></div>
+      <div class="relative w-full h-full bg-gradient-to-br from-green-100 to-emerald-50 rounded-full flex items-center justify-center border-2 border-green-200"><i class="fas fa-camera text-green-500 text-3xl"></i></div>
+    </div>
+    <h2 class="font-bold text-gray-800 text-lg mb-1">拍摄或上传叶片照片</h2>
+    <p class="text-xs text-gray-500 mb-6">请确保照片清晰，聚焦病害部位，光线充足</p>
+    <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+    <button onclick="document.getElementById('fileInput').click()" class="w-full gradient-bg text-white font-semibold py-4 rounded-xl text-sm shadow-lg mb-3 btn-press flex items-center justify-center gap-2"><i class="fas fa-images"></i> 从相册选择</button>
+    <button onclick="handleCamera()" class="w-full bg-white border-2 border-green-500 text-green-600 font-semibold py-3.5 rounded-xl text-sm btn-press flex items-center justify-center gap-2"><i class="fas fa-camera"></i> 拍照</button>
+  </div>
+
+  <div class="bg-white rounded-2xl card-shadow p-4 mb-5">
+    <h3 class="font-bold text-gray-800 text-sm mb-3 flex items-center gap-2"><i class="fas fa-circle-info text-blue-500"></i> 拍照小贴士</h3>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="flex items-start gap-2"><div class="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5"><i class="fas fa-check text-green-600 text-[10px]"></i></div><p class="text-xs text-gray-600">对准病斑部位，保持15-20cm距离</p></div>
+      <div class="flex items-start gap-2"><div class="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5"><i class="fas fa-check text-green-600 text-[10px]"></i></div><p class="text-xs text-gray-600">光线充足，避免阴影遮挡</p></div>
+      <div class="flex items-start gap-2"><div class="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5"><i class="fas fa-check text-green-600 text-[10px]"></i></div><p class="text-xs text-gray-600">包含叶片正反面特征</p></div>
+      <div class="flex items-start gap-2"><div class="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5"><i class="fas fa-check text-green-600 text-[10px]"></i></div><p class="text-xs text-gray-600">照片清晰，不抖动模糊</p></div>
+    </div>
+  </div>
+
+  <p class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2"><i class="fas fa-wand-magic-sparkles text-purple-500"></i> 快捷选择示例</p>
+  <div class="grid grid-cols-2 gap-3">
+    <div class="bg-white rounded-xl overflow-hidden card-shadow active:scale-[0.98] transition-transform cursor-pointer" onclick="selectDemo('tomato')"><div class="relative"><img src="https://images.unsplash.com/photo-1592841200221-a6898f307baa?w=400&h=260&fit=crop" class="w-full h-28 object-cover"><div class="absolute top-2 left-2 tag bg-black/50 text-white">番茄</div></div><div class="p-3"><p class="text-xs font-medium text-gray-800">番茄叶片异常</p><p class="text-xs text-gray-400 mt-0.5">疑似早疫病 &middot; 准确率 91%</p></div></div>
+    <div class="bg-white rounded-xl overflow-hidden card-shadow active:scale-[0.98] transition-transform cursor-pointer" onclick="selectDemo('cucumber')"><div class="relative"><img src="https://images.unsplash.com/photo-1561136594-7f68413baa99?w=400&h=260&fit=crop" class="w-full h-28 object-cover"><div class="absolute top-2 left-2 tag bg-black/50 text-white">黄瓜</div></div><div class="p-3"><p class="text-xs font-medium text-gray-800">黄瓜叶片异常</p><p class="text-xs text-gray-400 mt-0.5">疑似霜霉病 &middot; 准确率 87%</p></div></div>
+    <div class="bg-white rounded-xl overflow-hidden card-shadow active:scale-[0.98] transition-transform cursor-pointer" onclick="selectDemo('pepper')"><div class="relative"><img src="https://images.unsplash.com/photo-1568569350062-ebfa3cb195df?w=400&h=260&fit=crop" class="w-full h-28 object-cover"><div class="absolute top-2 left-2 tag bg-black/50 text-white">辣椒</div></div><div class="p-3"><p class="text-xs font-medium text-gray-800">辣椒叶片异常</p><p class="text-xs text-gray-400 mt-0.5">疑似炭疽病 &middot; 准确率 93%</p></div></div>
+    <div class="bg-white rounded-xl overflow-hidden card-shadow active:scale-[0.98] transition-transform cursor-pointer" onclick="selectDemo('eggplant')"><div class="relative"><img src="https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=400&h=260&fit=crop" class="w-full h-28 object-cover"><div class="absolute top-2 left-2 tag bg-black/50 text-white">茄子</div></div><div class="p-3"><p class="text-xs font-medium text-gray-800">茄子叶片异常</p><p class="text-xs text-gray-400 mt-0.5">疑似黄萎病 &middot; 准确率 85%</p></div></div>
+  </div>
+</div>
+</div>
+
+<!-- AI分析中 -->
+<div id="page-analyzing" class="page bg-gray-900 text-white">
+<div class="flex flex-col items-center justify-center min-h-screen px-8 relative overflow-hidden">
+  <div class="absolute top-1/4 left-1/4 w-64 h-64 bg-green-500/10 rounded-full blur-3xl"></div>
+  <div class="absolute bottom-1/4 right-1/4 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl"></div>
+  <div class="relative w-56 h-56 mb-10">
+    <img id="analyzingImg" src="" class="w-full h-full object-cover rounded-3xl opacity-50">
+    <div class="absolute inset-0 border-2 border-green-400/50 rounded-3xl"></div>
+    <div class="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-green-400 to-transparent scan-line"></div>
+    <div class="absolute top-3 left-3 w-6 h-6 border-l-2 border-t-2 border-green-400 rounded-tl-lg"></div>
+    <div class="absolute top-3 right-3 w-6 h-6 border-r-2 border-t-2 border-green-400 rounded-tr-lg"></div>
+    <div class="absolute bottom-3 left-3 w-6 h-6 border-l-2 border-b-2 border-green-400 rounded-bl-lg"></div>
+    <div class="absolute bottom-3 right-3 w-6 h-6 border-r-2 border-b-2 border-green-400 rounded-br-lg"></div>
+    <div class="absolute inset-0 flex items-center justify-center">
+      <div class="relative w-20 h-20">
+        <div class="absolute inset-0 border-4 border-green-400/20 rounded-full"></div>
+        <div class="absolute inset-0 border-4 border-green-400 border-t-transparent rounded-full animate-spin"></div>
+        <div class="absolute inset-0 flex items-center justify-center"><i class="fas fa-brain text-green-400 text-xl"></i></div>
+      </div>
+    </div>
+  </div>
+  <h2 class="text-2xl font-bold mb-2">AI 智能识别中</h2>
+  <p class="text-sm text-gray-400 mb-10">正在分析叶片特征，比对病虫害数据库</p>
+  <div class="w-full max-w-xs mb-8">
+    <div class="flex justify-between text-xs text-gray-400 mb-2"><span id="progressLabel">图像预处理</span><span id="progressText">0%</span></div>
+    <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+      <div id="progressBar" class="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all duration-300" style="width:0%"></div>
+    </div>
+  </div>
+  <div class="space-y-4 w-full max-w-xs" id="analysisSteps">
+    <div class="flex items-center gap-3 text-sm text-gray-500 transition-all" data-step="1"><div class="w-6 h-6 rounded-full border-2 border-gray-700 flex items-center justify-center transition-all"><i class="fas fa-check text-[10px] opacity-0 transition-opacity"></i></div><span>图像特征提取与增强</span></div>
+    <div class="flex items-center gap-3 text-sm text-gray-500 transition-all" data-step="2"><div class="w-6 h-6 rounded-full border-2 border-gray-700 flex items-center justify-center transition-all"><i class="fas fa-check text-[10px] opacity-0 transition-opacity"></i></div><span>病虫害特征比对 (200+ 病种库)</span></div>
+    <div class="flex items-center gap-3 text-sm text-gray-500 transition-all" data-step="3"><div class="w-6 h-6 rounded-full border-2 border-gray-700 flex items-center justify-center transition-all"><i class="fas fa-check text-[10px] opacity-0 transition-opacity"></i></div><span>知识图谱增强分析 (RAG)</span></div>
+    <div class="flex items-center gap-3 text-sm text-gray-500 transition-all" data-step="4"><div class="w-6 h-6 rounded-full border-2 border-gray-700 flex items-center justify-center transition-all"><i class="fas fa-check text-[10px] opacity-0 transition-opacity"></i></div><span>生成精准用药方案</span></div>
+  </div>
+</div>
+</div>
+
+<!-- 识别结果 -->
+<div id="page-result" class="page bg-gray-50">
+<div class="gradient-bg text-white px-5 pt-12 pb-8 relative">
+  <div class="relative flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <button onclick="goPage('page-home')" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center btn-press"><i class="fas fa-arrow-left text-sm"></i></button>
+      <h1 class="font-bold text-lg">识别结果</h1>
+    </div>
+    <button onclick="showShareModal()" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center btn-press"><i class="fas fa-share-nodes text-sm"></i></button>
+  </div>
+</div>
+<div class="px-4 -mt-4 pb-28 relative z-10">
+  <div class="bg-white rounded-2xl card-shadow p-5 mb-4 slide-up">
+    <div class="flex items-start gap-4 mb-4">
+      <div class="relative shrink-0"><img id="resultImg" src="" class="w-24 h-24 rounded-xl object-cover"><div class="absolute -bottom-1 -right-1 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-2 border-white shadow-lg"><i class="fas fa-check text-white text-xs"></i></div></div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-1 flex-wrap"><h2 id="diseaseName" class="text-lg font-bold text-gray-800"></h2><span class="tag bg-green-100 text-green-700">确诊</span></div>
+        <p id="diseaseEn" class="text-xs text-gray-400 mb-3 italic"></p>
+        <div class="flex items-center gap-3"><div class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden"><div id="confidenceBar" class="h-full rounded-full transition-all duration-1000" style="width:0%"></div></div><span id="confidenceText" class="text-sm font-bold text-green-600"></span></div>
+        <p class="text-xs text-gray-400 mt-1">AI 识别置信度</p>
+      </div>
+    </div>
+    <div class="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-100 mb-4">
+      <div class="flex items-center gap-2 mb-2"><div class="w-7 h-7 bg-gradient-to-br from-amber-400 to-orange-400 rounded-lg flex items-center justify-center"><i class="fas fa-info text-white text-xs"></i></div><span class="text-sm font-bold text-amber-800">病害简介</span></div>
+      <p id="diseaseDesc" class="text-xs text-amber-700 leading-relaxed"></p>
+    </div>
+    <div class="mb-4"><h3 class="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2"><i class="fas fa-list-check text-blue-500"></i> 发病症状</h3><div id="symptomsList" class="space-y-2.5"></div></div>
+    <div class="mb-2"><h3 class="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2"><i class="fas fa-shuffle text-purple-500"></i> 相似病例对比</h3><div class="flex gap-3 overflow-x-auto pb-2 hide-scrollbar" id="similarCases"></div></div>
+  </div>
+
+  <div class="bg-white rounded-2xl card-shadow p-5 mb-4 slide-up">
+    <div class="flex items-center gap-3 mb-5"><div class="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg"><i class="fas fa-prescription-bottle-alt text-white"></i></div><div><h2 class="font-bold text-gray-800">用药方案推荐</h2><p class="text-xs text-gray-500">基于知识图谱与专家经验生成</p></div></div>
+    <div id="medicineList" class="space-y-3 mb-5"></div>
+    <div class="bg-gradient-to-r from-red-50 to-rose-50 rounded-xl p-4 border border-red-100">
+      <div class="flex items-center gap-2 mb-2"><div class="w-7 h-7 bg-gradient-to-br from-red-400 to-rose-400 rounded-lg flex items-center justify-center"><i class="fas fa-triangle-exclamation text-white text-xs"></i></div><span class="text-sm font-bold text-red-800">注意事项</span></div>
+      <ul id="warningsList" class="text-xs text-red-700 space-y-2"></ul>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl card-shadow p-5 mb-4 slide-up">
+    <div class="flex items-center gap-3 mb-4">
+      <img src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=100&h=100&fit=crop&crop=face" class="w-14 h-14 rounded-full object-cover border-2 border-green-100">
+      <div class="flex-1"><h3 class="font-medium text-gray-800">农技专家在线复核</h3><p class="text-xs text-gray-500">大洋镇农技站 &middot; 张建国 高级农艺师</p><div class="flex items-center gap-1 mt-1"><div class="flex"><i class="fas fa-star text-yellow-400 text-[10px]"></i><i class="fas fa-star text-yellow-400 text-[10px]"></i><i class="fas fa-star text-yellow-400 text-[10px]"></i><i class="fas fa-star text-yellow-400 text-[10px]"></i><i class="fas fa-star-half-stroke text-yellow-400 text-[10px]"></i></div><span class="text-xs text-gray-500">4.9 &middot; 已服务 1,200+ 农户</span></div></div>
+      <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+    </div>
+    <p class="text-xs text-gray-500 mb-4">对 AI 识别结果有疑问？专家将在 48 小时内完成人工复核，出具正式诊断报告。</p>
+    <button onclick="goPage('page-expert')" class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold py-3.5 rounded-xl text-sm shadow-lg btn-press flex items-center justify-center gap-2"><i class="fas fa-user-md"></i> 申请专家复核（限时免费）</button>
+  </div>
+
+  <div class="bg-white rounded-2xl card-shadow p-4 mb-4">
+    <p class="text-sm text-gray-700 mb-3 font-medium">识别结果是否正确？</p>
+    <div class="flex gap-3">
+      <button onclick="handleFeedback(true)" class="flex-1 bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 py-3 rounded-xl text-sm font-semibold btn-press border border-green-100 flex items-center justify-center gap-2"><i class="fas fa-thumbs-up"></i> 识别正确</button>
+      <button onclick="handleFeedback(false)" class="flex-1 bg-gradient-to-r from-red-50 to-rose-50 text-red-700 py-3 rounded-xl text-sm font-semibold btn-press border border-red-100 flex items-center justify-center gap-2"><i class="fas fa-thumbs-down"></i> 识别有误</button>
+    </div>
+  </div>
+</div>
+<div class="fixed bottom-0 left-0 right-0 glass border-t border-gray-200/60 p-4 z-50">
+  <button onclick="goPage('page-upload')" class="w-full gradient-bg text-white font-semibold py-3.5 rounded-xl text-sm shadow-lg btn-press flex items-center justify-center gap-2"><i class="fas fa-camera"></i> 继续识别</button>
+</div>
+</div>
+
+<!-- 专家复核 -->
+<div id="page-expert" class="page bg-gray-50">
+<div class="gradient-bg text-white px-5 pt-12 pb-8 relative">
+  <div class="relative flex items-center gap-3">
+    <button onclick="goPage('page-result')" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center btn-press"><i class="fas fa-arrow-left text-sm"></i></button>
+    <h1 class="font-bold text-lg">专家复核申请</h1>
+  </div>
+</div>
+<div class="px-4 pt-6 pb-28">
+  <div class="bg-white rounded-2xl card-shadow p-4 mb-4">
+    <p class="text-xs text-gray-400 mb-2 uppercase tracking-wider">当前识别结果</p>
+    <div class="flex items-center gap-3"><img id="expertImg" src="" class="w-16 h-16 rounded-xl object-cover"><div><p id="expertDisease" class="font-bold text-gray-800"></p><p class="text-xs text-gray-500 mt-0.5">AI 置信度 <span id="expertConfidence" class="text-green-600 font-bold"></span></p></div></div>
+  </div>
+  <div class="bg-white rounded-2xl card-shadow p-5 mb-4">
+    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-file-pen text-blue-500"></i> 补充信息</h3>
+    <p class="text-xs text-gray-500 mb-4">完善以下信息可帮助专家更准确地判断</p>
+    <div class="space-y-4">
+      <div><label class="text-sm text-gray-700 mb-1.5 block font-medium">种植作物品种 <span class="text-red-400">*</span></label><input type="text" placeholder="如：粉果番茄、津优黄瓜" class="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-sm border border-gray-200 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100 transition-all"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-sm text-gray-700 mb-1.5 block font-medium">种植面积</label><input type="text" placeholder="如：2亩" class="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-sm border border-gray-200 focus:border-green-500 focus:outline-none transition-all"></div>
+        <div><label class="text-sm text-gray-700 mb-1.5 block font-medium">种植年限</label><input type="text" placeholder="如：第3年" class="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-sm border border-gray-200 focus:border-green-500 focus:outline-none transition-all"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-sm text-gray-700 mb-1.5 block font-medium">发病时间</label><input type="text" placeholder="如：约3天前" class="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-sm border border-gray-200 focus:border-green-500 focus:outline-none transition-all"></div>
+        <div><label class="text-sm text-gray-700 mb-1.5 block font-medium">扩散范围</label><input type="text" placeholder="如：约10%植株" class="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-sm border border-gray-200 focus:border-green-500 focus:outline-none transition-all"></div>
+      </div>
+      <div><label class="text-sm text-gray-700 mb-1.5 block font-medium">补充描述</label><textarea placeholder="请描述发病部位、扩散速度、近期施肥用药情况、天气条件等..." rows="4" class="w-full bg-gray-50 rounded-xl px-4 py-3.5 text-sm border border-gray-200 focus:border-green-500 focus:outline-none transition-all resize-none"></textarea></div>
+    </div>
+  </div>
+  <div class="bg-white rounded-2xl card-shadow p-5 mb-4">
+    <div class="flex items-center gap-4 mb-4">
+      <div class="relative"><img src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=100&h=100&fit=crop&crop=face" class="w-16 h-16 rounded-full object-cover border-2 border-green-100"><div class="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-white flex items-center justify-center"><i class="fas fa-check text-white text-[8px]"></i></div></div>
+      <div class="flex-1"><p class="font-bold text-gray-800">张建国 <span class="text-xs font-normal text-gray-500">高级农艺师</span></p><p class="text-xs text-gray-500">建德市大洋镇农技站 &middot; 15年经验</p><div class="flex items-center gap-1 mt-1.5"><div class="flex"><i class="fas fa-star text-yellow-400 text-[10px]"></i><i class="fas fa-star text-yellow-400 text-[10px]"></i><i class="fas fa-star text-yellow-400 text-[10px]"></i><i class="fas fa-star text-yellow-400 text-[10px]"></i><i class="fas fa-star-half-stroke text-yellow-400 text-[10px]"></i></div><span class="text-xs text-gray-500">4.9分 &middot; 1,200+ 服务</span></div></div>
+    </div>
+    <div class="flex flex-wrap gap-2"><span class="tag bg-blue-50 text-blue-700 border border-blue-100">番茄专家</span><span class="tag bg-green-50 text-green-700 border border-green-100">病虫害防治</span><span class="tag bg-orange-50 text-orange-700 border border-orange-100">水肥管理</span><span class="tag bg-purple-50 text-purple-700 border border-purple-100">设施栽培</span></div>
+  </div>
+  <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100 mb-4">
+    <div class="flex items-start gap-3"><div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-xl flex items-center justify-center shrink-0"><i class="fas fa-clock text-white text-sm"></i></div><div><p class="text-sm font-bold text-blue-800">预计响应时间</p><p class="text-xs text-blue-600 mt-1 leading-relaxed">工作日 24 小时内回复，节假日 48 小时内回复。当前排队人数：<span class="font-bold">3 人</span></p></div></div>
+  </div>
+  <div class="flex items-start gap-2 mb-4"><input type="checkbox" id="agree" class="mt-0.5 w-4 h-4 text-green-600 rounded border-gray-300"><label for="agree" class="text-xs text-gray-500 leading-relaxed">我已阅读并同意《专家咨询服务协议》，确认提交的信息真实有效，用于农业技术诊断目的。</label></div>
+</div>
+<div class="fixed bottom-0 left-0 right-0 glass border-t border-gray-200/60 p-4 z-50">
+  <button onclick="submitExpert()" class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold py-3.5 rounded-xl text-sm shadow-lg btn-press">提交复核申请</button>
+</div>
+</div>
+
+<!-- 提交成功 -->
+<div id="page-success" class="page bg-gray-50">
+<div class="flex flex-col items-center justify-center min-h-screen px-8">
+  <div class="relative mb-8"><div class="absolute inset-0 bg-green-400/20 rounded-full animate-ping"></div><div class="relative w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center shadow-xl"><i class="fas fa-check text-white text-4xl"></i></div></div>
+  <h2 class="text-2xl font-bold text-gray-800 mb-2">提交成功！</h2>
+  <p class="text-sm text-gray-500 text-center mb-10 leading-relaxed">专家将在 48 小时内完成复核<br>结果将通过微信服务通知您</p>
+  <div class="bg-white rounded-2xl card-shadow p-5 w-full max-w-xs mb-8">
+    <div class="flex items-center justify-between text-sm mb-3 pb-3 border-b border-gray-100"><span class="text-gray-500">申请编号</span><span class="font-mono font-bold text-gray-800">NY20241205001</span></div>
+    <div class="flex items-center justify-between text-sm mb-3 pb-3 border-b border-gray-100"><span class="text-gray-500">申请时间</span><span class="font-medium text-gray-800" id="submitTime"></span></div>
+    <div class="flex items-center justify-between text-sm"><span class="text-gray-500">当前状态</span><span class="tag bg-yellow-100 text-yellow-700 border border-yellow-200"><span class="w-2 h-2 bg-yellow-500 rounded-full inline-block mr-1"></span>待处理</span></div>
+  </div>
+  <div class="w-full max-w-xs space-y-3">
+    <button onclick="goPage('page-home')" class="w-full gradient-bg text-white font-semibold py-4 rounded-xl text-sm shadow-lg btn-press">返回首页</button>
+    <button onclick="goPage('page-history')" class="w-full bg-white text-gray-700 font-semibold py-4 rounded-xl text-sm border border-gray-200 btn-press">查看申请记录</button>
+  </div>
+</div>
+</div>
+
+<!-- 识别记录 -->
+<div id="page-history" class="page bg-gray-50">
+<div class="gradient-bg text-white px-5 pt-12 pb-8 relative">
+  <div class="relative flex items-center justify-between">
+    <div class="flex items-center gap-3"><button onclick="goPage('page-home')" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center btn-press"><i class="fas fa-arrow-left text-sm"></i></button><h1 class="font-bold text-lg">识别记录</h1></div>
+    <button onclick="showToast('筛选功能开发中')" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center btn-press"><i class="fas fa-filter text-sm"></i></button>
+  </div>
+</div>
+<div class="px-4 pt-4 pb-24">
+  <div class="bg-white rounded-2xl card-shadow p-4 mb-4">
+    <div class="grid grid-cols-3 gap-4 text-center">
+      <div><p class="text-2xl font-bold text-gray-800">12</p><p class="text-xs text-gray-500 mt-1">总识别次数</p></div>
+      <div><p class="text-2xl font-bold text-green-600">89%</p><p class="text-xs text-gray-500 mt-1">平均准确率</p></div>
+      <div><p class="text-2xl font-bold text-blue-600">3</p><p class="text-xs text-gray-500 mt-1">专家复核</p></div>
+    </div>
+  </div>
+  <div class="space-y-3">
+    <div class="bg-white rounded-2xl card-shadow p-4"><div class="flex items-center gap-3"><img src="https://images.unsplash.com/photo-1592841200221-a6898f307baa?w=100&h=100&fit=crop" class="w-16 h-16 rounded-xl object-cover"><div class="flex-1"><div class="flex items-center gap-2 mb-1"><h3 class="font-medium text-gray-800">番茄早疫病</h3><span class="tag bg-green-100 text-green-700 border border-green-200">已解决</span></div><p class="text-xs text-gray-500">识别准确率 91% &middot; 2天前</p><p class="text-xs text-gray-400 mt-1">用药：代森锰锌 + 百菌清</p></div></div></div>
+    <div class="bg-white rounded-2xl card-shadow p-4"><div class="flex items-center gap-3"><img src="https://images.unsplash.com/photo-1561136594-7f68413baa99?w=100&h=100&fit=crop" class="w-16 h-16 rounded-xl object-cover"><div class="flex-1"><div class="flex items-center gap-2 mb-1"><h3 class="font-medium text-gray-800">黄瓜霜霉病</h3><span class="tag bg-yellow-100 text-yellow-700 border border-yellow-200">处理中</span></div><p class="text-xs text-gray-500">识别准确率 87% &middot; 5天前</p><p class="text-xs text-gray-400 mt-1">用药：霜霉威 + 烯酰吗啉</p></div></div></div>
+    <div class="bg-white rounded-2xl card-shadow p-4"><div class="flex items-center gap-3"><img src="https://images.unsplash.com/photo-1568569350062-ebfa3cb195df?w=100&h=100&fit=crop" class="w-16 h-16 rounded-xl object-cover"><div class="flex-1"><div class="flex items-center gap-2 mb-1"><h3 class="font-medium text-gray-800">辣椒炭疽病</h3><span class="tag bg-green-100 text-green-700 border border-green-200">已解决</span></div><p class="text-xs text-gray-500">识别准确率 93% &middot; 12天前</p><p class="text-xs text-gray-400 mt-1">用药：咪鲜胺 + 苯醚甲环唑</p></div></div></div>
+    <div class="bg-white rounded-2xl card-shadow p-4"><div class="flex items-center gap-3"><img src="https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=100&h=100&fit=crop" class="w-16 h-16 rounded-xl object-cover"><div class="flex-1"><div class="flex items-center gap-2 mb-1"><h3 class="font-medium text-gray-800">茄子黄萎病</h3><span class="tag bg-red-100 text-red-700 border border-red-200">专家建议中</span></div><p class="text-xs text-gray-500">识别准确率 85% &middot; 18天前</p><p class="text-xs text-gray-400 mt-1">已申请专家复核，待回复</p></div></div></div>
+  </div>
+</div>
+<div class="fixed bottom-0 left-0 right-0 glass border-t border-gray-200/60 flex justify-around py-2 pb-safe z-50">
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('home')"><i class="fas fa-home text-lg"></i><span class="text-[11px]">首页</span></button>
+  <button class="bottom-nav-item active flex flex-col items-center gap-0.5 py-1 px-4 text-green-600" onclick="switchTab('history')"><i class="fas fa-clock-rotate-left text-lg"></i><span class="text-[11px] font-medium">记录</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('wiki')"><i class="fas fa-book text-lg"></i><span class="text-[11px]">百科</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('profile')"><i class="fas fa-user text-lg"></i><span class="text-[11px]">我的</span></button>
+</div>
+</div>
+
+<!-- 水肥推荐 -->
+<div id="page-fertilizer" class="page bg-gray-50">
+<div class="gradient-bg text-white px-5 pt-12 pb-8 relative">
+  <div class="relative flex items-center gap-3"><button onclick="goPage('page-home')" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center btn-press"><i class="fas fa-arrow-left text-sm"></i></button><h1 class="font-bold text-lg">水肥精准推荐</h1></div>
+</div>
+<div class="px-4 -mt-4 pb-24">
+  <div class="bg-white rounded-2xl card-shadow p-4 mb-4">
+    <p class="text-xs text-gray-400 mb-3 uppercase tracking-wider">选择作物</p>
+    <div class="flex gap-3 overflow-x-auto pb-2 hide-scrollbar" id="cropSelector">
+      <!-- JS渲染 -->
+    </div>
+  </div>
+  <div class="bg-white rounded-2xl card-shadow p-4 mb-4">
+    <p class="text-xs text-gray-400 mb-3 uppercase tracking-wider">当前生长期</p>
+    <div class="flex gap-2 flex-wrap" id="stageSelector">
+      <!-- JS渲染 -->
+    </div>
+  </div>
+  <div class="bg-white rounded-2xl card-shadow p-5 mb-4">
+    <div class="flex items-center gap-3 mb-4"><div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-500 rounded-xl flex items-center justify-center"><i class="fas fa-flask text-white"></i></div><div><h3 class="font-bold text-gray-800">今日水肥方案</h3><p class="text-xs text-gray-500">基于土壤检测 + 作物模型 + 生育期算法生成</p></div></div>
+    <div class="space-y-4">
+      <div id="irrigationPlan"><!-- JS渲染 --></div>
+      <div id="fertilizerList" class="space-y-3"><!-- JS渲染 --></div>
+    </div>
+  </div>
+  <div class="bg-white rounded-2xl card-shadow p-5 mb-4">
+    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-chart-pie text-green-500"></i> 土壤检测数据</h3>
+    <div class="grid grid-cols-2 gap-3" id="soilData"><!-- JS渲染 --></div>
+  </div>
+  <div class="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-5 border border-amber-100 mb-4">
+    <div class="flex items-center gap-2 mb-3"><div class="w-7 h-7 bg-gradient-to-br from-amber-400 to-orange-400 rounded-lg flex items-center justify-center"><i class="fas fa-triangle-exclamation text-white text-xs"></i></div><span class="text-sm font-bold text-amber-800">关键注意事项</span></div>
+    <ul class="space-y-2" id="warningList"><!-- JS渲染 --></ul>
+  </div>
+</div>
+</div>
+<div class="fixed bottom-0 left-0 right-0 glass border-t border-gray-200/60 flex justify-around py-2 pb-safe z-50">
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('home')"><i class="fas fa-home text-lg"></i><span class="text-[11px]">首页</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('history')"><i class="fas fa-clock-rotate-left text-lg"></i><span class="text-[11px]">记录</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('wiki')"><i class="fas fa-book text-lg"></i><span class="text-[11px]">百科</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('profile')"><i class="fas fa-user text-lg"></i><span class="text-[11px]">我的</span></button>
+</div>
+</div>
+
+<!-- 环境预警 -->
+<div id="page-environment" class="page bg-gray-50">
+<div class="gradient-bg text-white px-5 pt-12 pb-8 relative">
+  <div class="relative flex items-center gap-3"><button onclick="goPage('page-home')" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center btn-press"><i class="fas fa-arrow-left text-sm"></i></button><h1 class="font-bold text-lg">环境预警</h1></div>
+</div>
+<div class="px-4 -mt-4 pb-24">
+  <div class="bg-white rounded-2xl card-shadow p-5 mb-4">
+    <div class="flex items-center justify-between mb-4"><h3 class="font-bold text-gray-800">大棚环境监测</h3><span class="tag bg-green-100 text-green-700 border border-green-200"><span class="w-2 h-2 bg-green-500 rounded-full inline-block mr-1"></span>正常运行</span></div>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-4 border border-orange-100"><div class="flex items-center gap-2 mb-2"><i class="fas fa-temperature-high text-orange-500"></i><span class="text-xs text-gray-600">温度</span></div><p class="text-2xl font-bold text-orange-600">28.5&deg;C</p><p class="text-xs text-orange-500 mt-1">偏高 &middot; 建议通风</p></div>
+      <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100"><div class="flex items-center gap-2 mb-2"><i class="fas fa-droplet text-blue-500"></i><span class="text-xs text-gray-600">湿度</span></div><p class="text-2xl font-bold text-blue-600">72%</p><p class="text-xs text-blue-500 mt-1">偏高 &middot; 注意病害</p></div>
+      <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100"><div class="flex items-center gap-2 mb-2"><i class="fas fa-sun text-green-500"></i><span class="text-xs text-gray-600">光照</span></div><p class="text-2xl font-bold text-green-600">4.2万</p><p class="text-xs text-green-500 mt-1">lux &middot; 适宜</p></div>
+      <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100"><div class="flex items-center gap-2 mb-2"><i class="fas fa-wind text-purple-500"></i><span class="text-xs text-gray-600">CO₂</span></div><p class="text-2xl font-bold text-purple-600">420</p><p class="text-xs text-purple-500 mt-1">ppm &middot; 正常</p></div>
+    </div>
+  </div>
+  <div class="bg-white rounded-2xl card-shadow p-5 mb-4">
+    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-bell text-orange-500"></i> 最近预警</h3>
+    <div class="space-y-3">
+      <div class="flex items-start gap-3 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-100"><div class="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center shrink-0"><i class="fas fa-temperature-high text-white text-xs"></i></div><div class="flex-1"><div class="flex items-center justify-between"><p class="text-sm font-medium text-gray-800">温度过高预警</p><span class="text-xs text-gray-400">10分钟前</span></div><p class="text-xs text-gray-500 mt-1">1号大棚温度达到 31&deg;C，超过设定阈值 30&deg;C，建议开启遮阳网或通风</p></div></div>
+      <div class="flex items-start gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100"><div class="w-8 h-8 bg-blue-400 rounded-lg flex items-center justify-center shrink-0"><i class="fas fa-droplet text-white text-xs"></i></div><div class="flex-1"><div class="flex items-center justify-between"><p class="text-sm font-medium text-gray-800">湿度过高提醒</p><span class="text-xs text-gray-400">1小时前</span></div><p class="text-xs text-gray-500 mt-1">2号大棚湿度 78%，连续3小时超过70%，注意霜霉病风险</p></div></div>
+      <div class="flex items-start gap-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100"><div class="w-8 h-8 bg-green-400 rounded-lg flex items-center justify-center shrink-0"><i class="fas fa-check text-white text-xs"></i></div><div class="flex-1"><div class="flex items-center justify-between"><p class="text-sm font-medium text-gray-800">环境恢复正常</p><span class="text-xs text-gray-400">3小时前</span></div><p class="text-xs text-gray-500 mt-1">1号大棚温度已降至 26&deg;C，所有指标恢复正常范围</p></div></div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="fixed bottom-0 left-0 right-0 glass border-t border-gray-200/60 flex justify-around py-2 pb-safe z-50">
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('home')"><i class="fas fa-home text-lg"></i><span class="text-[11px]">首页</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('history')"><i class="fas fa-clock-rotate-left text-lg"></i><span class="text-[11px]">记录</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('wiki')"><i class="fas fa-book text-lg"></i><span class="text-[11px]">百科</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('profile')"><i class="fas fa-user text-lg"></i><span class="text-[11px]">我的</span></button>
+</div>
+</div>
+
+<!-- 种植百科 -->
+<div id="page-wiki" class="page bg-gray-50">
+<div class="gradient-bg text-white px-5 pt-12 pb-8 relative">
+  <div class="relative flex items-center justify-between">
+    <div class="flex items-center gap-3"><button onclick="goPage('page-home')" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center btn-press"><i class="fas fa-arrow-left text-sm"></i></button><h1 class="font-bold text-lg">种植百科</h1></div>
+  </div>
+</div>
+<div class="px-4 -mt-4 pb-24">
+  <div class="bg-white rounded-2xl card-shadow p-3 mb-4 flex items-center gap-2">
+    <i class="fas fa-search text-gray-400 ml-2"></i>
+    <input type="text" id="wikiSearchInput" placeholder="搜索病虫害、作物、农药技术..." class="flex-1 text-sm outline-none bg-transparent py-2" onkeydown="if(event.key==='Enter'){doWikiSearch()}">
+    <button onclick="doWikiSearch()" class="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-medium px-4 py-2 rounded-lg btn-press">搜索</button>
+  </div>
+
+  <p class="text-xs text-gray-400 mb-3 uppercase tracking-wider">快捷搜索</p>
+  <div class="grid grid-cols-2 gap-2 mb-4">
+    <button onclick="wikiQuickSearch('番茄早疫病防治方法')" class="bg-white rounded-xl p-3 text-left card-shadow btn-press flex items-center gap-3"><div class="w-9 h-9 bg-red-100 rounded-lg flex items-center justify-center shrink-0"><i class="fas fa-bug text-red-500 text-sm"></i></div><div><p class="text-xs font-medium text-gray-800">番茄早疫病防治</p><p class="text-[10px] text-gray-400 mt-0.5">搜索防治技术</p></div></button>
+    <button onclick="wikiQuickSearch('黄瓜霜霉病怎么治')" class="bg-white rounded-xl p-3 text-left card-shadow btn-press flex items-center gap-3"><div class="w-9 h-9 bg-yellow-100 rounded-lg flex items-center justify-center shrink-0"><i class="fas fa-leaf text-yellow-600 text-sm"></i></div><div><p class="text-xs font-medium text-gray-800">黄瓜霜霉病防治</p><p class="text-[10px] text-gray-400 mt-0.5">搜索防治方案</p></div></button>
+    <button onclick="wikiQuickSearch('设施番茄水肥一体化技术')" class="bg-white rounded-xl p-3 text-left card-shadow btn-press flex items-center gap-3"><div class="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center shrink-0"><i class="fas fa-seedling text-green-500 text-sm"></i></div><div><p class="text-xs font-medium text-gray-800">番茄水肥一体化</p><p class="text-[10px] text-gray-400 mt-0.5">搜索栽培技术</p></div></button>
+    <button onclick="wikiQuickSearch('辣椒炭疽病用药方案')" class="bg-white rounded-xl p-3 text-left card-shadow btn-press flex items-center gap-3"><div class="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center shrink-0"><i class="fas fa-flask text-orange-500 text-sm"></i></div><div><p class="text-xs font-medium text-gray-800">辣椒炭疽病用药</p><p class="text-[10px] text-gray-400 mt-0.5">搜索用药指南</p></div></button>
+    <button onclick="wikiQuickSearch('大棚蔬菜种植技术')" class="bg-white rounded-xl p-3 text-left card-shadow btn-press flex items-center gap-3"><div class="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center shrink-0"><i class="fas fa-warehouse text-blue-500 text-sm"></i></div><div><p class="text-xs font-medium text-gray-800">大棚种植技术</p><p class="text-[10px] text-gray-400 mt-0.5">搜索综合管理</p></div></button>
+    <button onclick="wikiQuickSearch('水稻病虫害防治技术')" class="bg-white rounded-xl p-3 text-left card-shadow btn-press flex items-center gap-3"><div class="w-9 h-9 bg-cyan-100 rounded-lg flex items-center justify-center shrink-0"><i class="fas fa-wheat-awn text-cyan-600 text-sm"></i></div><div><p class="text-xs font-medium text-gray-800">水稻病虫害防治</p><p class="text-[10px] text-gray-400 mt-0.5">搜索水稻技术</p></div></button>
+  </div>
+
+  <div class="bg-white rounded-2xl card-shadow p-5 mb-4">
+    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-fire text-red-500"></i> 热门文章</h3>
+    <div class="space-y-3">
+      <div class="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer" onclick="wikiQuickSearch('番茄早疫病的识别与综合防治技术')"><img src="https://images.unsplash.com/photo-1592841200221-a6898f307baa?w=100&h=100&fit=crop" class="w-16 h-16 rounded-xl object-cover shrink-0"><div class="flex-1"><p class="text-sm font-medium text-gray-800 leading-snug">番茄早疫病的识别与综合防治技术</p><p class="text-xs text-gray-500 mt-1">病虫害 &middot; 阅读 3.2k &middot; 收藏 156</p></div><i class="fas fa-arrow-up-right-from-square text-gray-300 text-xs mt-1"></i></div>
+      <div class="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer" onclick="wikiQuickSearch('黄瓜霜霉病发病规律与绿色防控')"><img src="https://images.unsplash.com/photo-1561136594-7f68413baa99?w=100&h=100&fit=crop" class="w-16 h-16 rounded-xl object-cover shrink-0"><div class="flex-1"><p class="text-sm font-medium text-gray-800 leading-snug">黄瓜霜霉病发病规律与绿色防控</p><p class="text-xs text-gray-500 mt-1">病虫害 &middot; 阅读 2.8k &middot; 收藏 128</p></div><i class="fas fa-arrow-up-right-from-square text-gray-300 text-xs mt-1"></i></div>
+      <div class="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer" onclick="wikiQuickSearch('设施番茄水肥一体化管理技术要点')"><img src="https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=100&h=100&fit=crop" class="w-16 h-16 rounded-xl object-cover shrink-0"><div class="flex-1"><p class="text-sm font-medium text-gray-800 leading-snug">设施番茄水肥一体化管理技术要点</p><p class="text-xs text-gray-500 mt-1">作物栽培 &middot; 阅读 4.1k &middot; 收藏 203</p></div><i class="fas fa-arrow-up-right-from-square text-gray-300 text-xs mt-1"></i></div>
+    </div>
+  </div>
+
+  <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-100 mb-4">
+    <div class="flex items-center gap-3 mb-2"><div class="w-8 h-8 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-lg flex items-center justify-center"><i class="fas fa-magnifying-glass text-white text-sm"></i></div><div><p class="text-sm font-bold text-blue-800">百度搜索直连</p><p class="text-[10px] text-blue-600">输入任意农技问题，一键跳转百度搜索</p></div></div>
+    <p class="text-xs text-blue-700 leading-relaxed">种植百科接入百度搜索，搜索任何病虫害防治、作物栽培、农药肥料、土壤改良等技术问题，直接跳转到百度搜索结果页查看权威答案。</p>
+  </div>
+</div>
+</div>
+<div class="fixed bottom-0 left-0 right-0 glass border-t border-gray-200/60 flex justify-around py-2 pb-safe z-50">
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('home')"><i class="fas fa-home text-lg"></i><span class="text-[11px]">首页</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('history')"><i class="fas fa-clock-rotate-left text-lg"></i><span class="text-[11px]">记录</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('wiki')"><i class="fas fa-book text-lg"></i><span class="text-[11px]">百科</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('profile')"><i class="fas fa-user text-lg"></i><span class="text-[11px]">我的</span></button>
+</div>
+</div>
+
+<!-- 个人中心 -->
+<div id="page-profile" class="page bg-gray-50">
+<div class="gradient-bg text-white px-5 pt-12 pb-20 relative">
+  <div class="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4"></div>
+  <div class="relative flex items-center justify-between mb-6">
+    <button onclick="goPage('page-home')" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center btn-press"><i class="fas fa-arrow-left text-sm"></i></button>
+    <button onclick="showToast('设置功能开发中')" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center btn-press"><i class="fas fa-gear text-sm"></i></button>
+  </div>
+  <div class="flex items-center gap-4">
+    <div class="relative"><img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&h=120&fit=crop&crop=face" class="w-20 h-20 rounded-full object-cover border-3 border-white/30"><div class="absolute bottom-0 right-0 w-6 h-6 bg-green-400 rounded-full border-2 border-white flex items-center justify-center"><i class="fas fa-check text-white text-[10px]"></i></div></div>
+    <div><h2 class="text-xl font-bold">王鋆燚</h2><p class="text-sm text-white/70 mt-0.5">建德市大洋镇 &middot; 设施农业种植户</p><div class="flex items-center gap-2 mt-2"><span class="tag bg-white/15 text-white border border-white/20 text-[10px]"><i class="fas fa-crown text-yellow-300 text-[8px]"></i> 金牌农户</span><span class="tag bg-white/15 text-white border border-white/20 text-[10px]">种植 3 年</span></div></div>
+  </div>
+</div>
+<div class="px-4 -mt-8 pb-24">
+  <div class="bg-white rounded-2xl card-shadow p-5 mb-4">
+    <div class="grid grid-cols-4 gap-4 text-center">
+      <div><p class="text-xl font-bold text-gray-800">12</p><p class="text-[11px] text-gray-500 mt-1">识别次数</p></div>
+      <div><p class="text-xl font-bold text-gray-800">3</p><p class="text-[11px] text-gray-500 mt-1">专家咨询</p></div>
+      <div><p class="text-xl font-bold text-gray-800">2</p><p class="text-[11px] text-gray-500 mt-1">管理大棚</p></div>
+      <div><p class="text-xl font-bold text-gray-800">156</p><p class="text-[11px] text-gray-500 mt-1">学习时长</p></div>
+    </div>
+  </div>
+  <div class="bg-white rounded-2xl card-shadow overflow-hidden mb-4">
+    <div class="p-4 flex items-center justify-between border-b border-gray-50 active:bg-gray-50 transition-colors" onclick="showToast('我的大棚')"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center"><i class="fas fa-warehouse text-green-600 text-sm"></i></div><span class="text-sm text-gray-800">我的大棚</span></div><i class="fas fa-chevron-right text-gray-300 text-xs"></i></div>
+    <div class="p-4 flex items-center justify-between border-b border-gray-50 active:bg-gray-50 transition-colors" onclick="showToast('识别记录')"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center"><i class="fas fa-clock-rotate-left text-blue-600 text-sm"></i></div><span class="text-sm text-gray-800">识别记录</span></div><div class="flex items-center gap-2"><span class="text-xs text-gray-400">12条</span><i class="fas fa-chevron-right text-gray-300 text-xs"></i></div></div>
+    <div class="p-4 flex items-center justify-between border-b border-gray-50 active:bg-gray-50 transition-colors" onclick="showToast('我的收藏')"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-yellow-100 rounded-lg flex items-center justify-center"><i class="fas fa-star text-yellow-600 text-sm"></i></div><span class="text-sm text-gray-800">我的收藏</span></div><div class="flex items-center gap-2"><span class="text-xs text-gray-400">28篇</span><i class="fas fa-chevron-right text-gray-300 text-xs"></i></div></div>
+    <div class="p-4 flex items-center justify-between border-b border-gray-50 active:bg-gray-50 transition-colors" onclick="showToast('专家咨询记录')"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-purple-100 rounded-lg flex items-center justify-center"><i class="fas fa-user-md text-purple-600 text-sm"></i></div><span class="text-sm text-gray-800">专家咨询记录</span></div><i class="fas fa-chevron-right text-gray-300 text-xs"></i></div>
+    <div class="p-4 flex items-center justify-between active:bg-gray-50 transition-colors" onclick="showToast('消息通知')"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-red-100 rounded-lg flex items-center justify-center"><i class="fas fa-bell text-red-600 text-sm"></i></div><span class="text-sm text-gray-800">消息通知</span></div><div class="flex items-center gap-2"><span class="w-2 h-2 bg-red-500 rounded-full"></span><i class="fas fa-chevron-right text-gray-300 text-xs"></i></div></div>
+  </div>
+  <div class="bg-white rounded-2xl card-shadow overflow-hidden mb-4">
+    <div class="p-4 flex items-center justify-between border-b border-gray-50 active:bg-gray-50 transition-colors" onclick="showToast('帮助与反馈')"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center"><i class="fas fa-circle-question text-gray-600 text-sm"></i></div><span class="text-sm text-gray-800">帮助与反馈</span></div><i class="fas fa-chevron-right text-gray-300 text-xs"></i></div>
+    <div class="p-4 flex items-center justify-between active:bg-gray-50 transition-colors" onclick="showToast('关于农眼AI')"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center"><i class="fas fa-circle-info text-gray-600 text-sm"></i></div><span class="text-sm text-gray-800">关于农眼AI</span></div><i class="fas fa-chevron-right text-gray-300 text-xs"></i></div>
+  </div>
+  <button onclick="showToast('退出登录')" class="w-full bg-white rounded-2xl card-shadow p-4 text-center text-red-500 font-medium text-sm btn-press mb-4">退出登录</button>
+  <p class="text-center text-xs text-gray-400">农眼AI v2.1.0</p>
+</div>
+<div class="fixed bottom-0 left-0 right-0 glass border-t border-gray-200/60 flex justify-around py-2 pb-safe z-50">
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('home')"><i class="fas fa-home text-lg"></i><span class="text-[11px]">首页</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('history')"><i class="fas fa-clock-rotate-left text-lg"></i><span class="text-[11px]">记录</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('wiki')"><i class="fas fa-book text-lg"></i><span class="text-[11px]">百科</span></button>
+  <button class="bottom-nav-item active flex flex-col items-center gap-0.5 py-1 px-4 text-green-600" onclick="switchTab('profile')"><i class="fas fa-user text-lg"></i><span class="text-[11px] font-medium">我的</span></button>
+</div>
+</div>
+
+<!-- 通知中心 -->
+<div id="page-notify" class="page bg-gray-50">
+<div class="gradient-bg text-white px-5 pt-12 pb-8 relative">
+  <div class="relative flex items-center justify-between">
+    <div class="flex items-center gap-3"><button onclick="goPage('page-home')" class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center btn-press"><i class="fas fa-arrow-left text-sm"></i></button><h1 class="font-bold text-lg">消息通知</h1></div>
+    <button onclick="showToast('全部已读')" class="text-xs text-white/70">全部已读</button>
+  </div>
+</div>
+<div class="px-4 pt-4 pb-24">
+  <div class="space-y-3">
+    <div class="bg-white rounded-2xl card-shadow p-4">
+      <div class="flex items-start gap-3"><div class="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-xl flex items-center justify-center shrink-0"><i class="fas fa-temperature-high text-white text-sm"></i></div><div class="flex-1"><div class="flex items-center justify-between mb-1"><p class="text-sm font-bold text-gray-800">温度过高预警</p><span class="text-xs text-gray-400">10分钟前</span></div><p class="text-xs text-gray-600 leading-relaxed">1号大棚温度达到 31&deg;C，超过设定阈值，建议开启遮阳网或通风降温。</p></div></div>
+    </div>
+    <div class="bg-white rounded-2xl card-shadow p-4">
+      <div class="flex items-start gap-3"><div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-xl flex items-center justify-center shrink-0"><i class="fas fa-user-md text-white text-sm"></i></div><div class="flex-1"><div class="flex items-center justify-between mb-1"><p class="text-sm font-bold text-gray-800">专家回复</p><span class="text-xs text-gray-400">2小时前</span></div><p class="text-xs text-gray-600 leading-relaxed">张建国专家已回复您的复核申请："经确认，AI识别结果准确，建议按方案执行..."</p></div></div>
+    </div>
+    <div class="bg-white rounded-2xl card-shadow p-4">
+      <div class="flex items-start gap-3"><div class="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-400 rounded-xl flex items-center justify-center shrink-0"><i class="fas fa-seedling text-white text-sm"></i></div><div class="flex-1"><div class="flex items-center justify-between mb-1"><p class="text-sm font-bold text-gray-800">农技小贴士</p><span class="text-xs text-gray-400">今天 08:00</span></div><p class="text-xs text-gray-600 leading-relaxed">今日适宜进行叶面喷施，建议在上午9-11点或下午4-6点进行，避免高温时段。</p></div></div>
+    </div>
+    <div class="bg-white rounded-2xl card-shadow p-4 opacity-60">
+      <div class="flex items-start gap-3"><div class="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center shrink-0"><i class="fas fa-droplet text-gray-500 text-sm"></i></div><div class="flex-1"><div class="flex items-center justify-between mb-1"><p class="text-sm font-medium text-gray-600">湿度提醒</p><span class="text-xs text-gray-400">昨天</span></div><p class="text-xs text-gray-500 leading-relaxed">2号大棚湿度恢复正常范围，当前湿度 65%。</p></div></div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="fixed bottom-0 left-0 right-0 glass border-t border-gray-200/60 flex justify-around py-2 pb-safe z-50">
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('home')"><i class="fas fa-home text-lg"></i><span class="text-[11px]">首页</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('history')"><i class="fas fa-clock-rotate-left text-lg"></i><span class="text-[11px]">记录</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('wiki')"><i class="fas fa-book text-lg"></i><span class="text-[11px]">百科</span></button>
+  <button class="bottom-nav-item flex flex-col items-center gap-0.5 py-1 px-4 text-gray-400" onclick="switchTab('profile')"><i class="fas fa-user text-lg"></i><span class="text-[11px]">我的</span></button>
+</div>
+</div>
+
+<!-- 分享弹窗 -->
+<div id="shareModal" class="modal-overlay" onclick="hideShareModal()"></div>
+<div id="shareContent" class="modal-content">
+  <div class="p-6">
+    <div class="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-6"></div>
+    <h3 class="text-lg font-bold text-gray-800 text-center mb-6">分享识别结果</h3>
+    <div class="grid grid-cols-4 gap-4 mb-6">
+      <div class="text-center"><div class="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-2"><i class="fab fa-weixin text-green-600 text-xl"></i></div><p class="text-xs text-gray-600">微信好友</p></div>
+      <div class="text-center"><div class="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-2"><i class="fas fa-comment-dots text-green-500 text-xl"></i></div><p class="text-xs text-gray-600">朋友圈</p></div>
+      <div class="text-center"><div class="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-2"><i class="fas fa-link text-blue-600 text-xl"></i></div><p class="text-xs text-gray-600">复制链接</p></div>
+      <div class="text-center"><div class="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-2"><i class="fas fa-qrcode text-gray-600 text-xl"></i></div><p class="text-xs text-gray-600">二维码</p></div>
+    </div>
+    <button onclick="hideShareModal()" class="w-full bg-gray-100 text-gray-700 font-medium py-3 rounded-xl text-sm">取消</button>
+  </div>
+</div>
+
+<script>
+function goPage(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+  window.scrollTo(0, 0);
+  if (pageId === 'page-fertilizer') { renderCropSelector(); renderStageSelector(); renderFertilizerPlan(); }
+  // 同步底部导航高亮
+  const tabMap = { 'page-home': 'home', 'page-history': 'history', 'page-wiki': 'wiki', 'page-profile': 'profile' };
+  const activeTab = tabMap[pageId];
+  if (activeTab) {
+    document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+      btn.classList.remove('active', 'text-green-600');
+      btn.classList.add('text-gray-400');
+      const span = btn.querySelector('span');
+      if (span) span.classList.remove('font-medium');
+    });
+    const btns = document.querySelectorAll('.bottom-nav-item');
+    btns.forEach(btn => {
+      if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes("'" + activeTab + "'")) {
+        btn.classList.add('active', 'text-green-600');
+        btn.classList.remove('text-gray-400');
+        const span = btn.querySelector('span');
+        if (span) span.classList.add('font-medium');
+      }
+    });
+  }
+}
+function switchTab(tab) {
+  const map = { home: 'page-home', history: 'page-history', wiki: 'page-wiki', profile: 'page-profile' };
+  goPage(map[tab]);
+}
+function showToast(text) {
+  const toast = document.getElementById('toast');
+  toast.textContent = text;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+function showShareModal() {
+  document.getElementById('shareModal').classList.add('show');
+  document.getElementById('shareContent').classList.add('show');
+}
+function hideShareModal() {
+  document.getElementById('shareModal').classList.remove('show');
+  document.getElementById('shareContent').classList.remove('show');
+}
+function handleFeedback(isCorrect) {
+  showToast(isCorrect ? '感谢您的反馈！已记录用于优化模型。' : '已记录，将反馈给技术团队优化。');
+}
+
+const diseaseDB = {
+  tomato: {
+    name: '番茄早疫病', en: 'Alternaria solani (Early Blight)', confidence: 91,
+    desc: '番茄早疫病是由茄链格孢菌引起的真菌性病害，主要危害叶片、茎和果实。高温高湿条件下易发生，是设施番茄栽培中的常见病害。发病适宜温度 20-25&deg;C，相对湿度 80% 以上。',
+    symptoms: ['叶片出现圆形或近圆形黑褐色病斑，有明显的同心轮纹','病斑边缘有黄色晕圈，严重时多个病斑融合导致叶片枯死','茎部病斑呈椭圆形，稍凹陷，后期纵裂','果实病斑多在果蒂附近，呈褐色凹陷状，有同心轮纹'],
+    medicines: [
+      { name: '代森锰锌', dosage: '80%可湿性粉剂 600倍液', method: '叶面喷施，每隔7-10天一次，连喷2-3次', period: '安全间隔期 15天' },
+      { name: '百菌清', dosage: '75%可湿性粉剂 500倍液', method: '发病初期喷施，重点喷叶背和茎部', period: '安全间隔期 7天' },
+      { name: '苯醚甲环唑', dosage: '10%水分散粒剂 1500倍液', method: '与保护性杀菌剂轮换使用，避免抗性', period: '安全间隔期 14天' }
+    ],
+    warnings: ['发病初期及时用药，效果更佳；病情严重时需摘除重病叶','不同作用机理的药剂轮换使用，避免病原菌产生抗药性','喷药时注意叶片正反面均匀覆盖，重点喷植株中下部','采收前严格遵守安全间隔期，确保农产品质量安全','加强田间管理，及时通风降湿，避免大水漫灌'],
+    similar: [{ name: '番茄晚疫病', img: 'https://images.unsplash.com/photo-1592841200221-a6898f307baa?w=100&h=100&fit=crop', conf: '8%' },{ name: '番茄叶霉病', img: 'https://images.unsplash.com/photo-1592841200221-a6898f307baa?w=100&h=100&fit=crop', conf: '1%' }]
+  },
+  cucumber: {
+    name: '黄瓜霜霉病', en: 'Pseudoperonospora cubensis (Downy Mildew)', confidence: 87,
+    desc: '黄瓜霜霉病是由古巴假霜霉菌引起的卵菌性病害，是黄瓜栽培中最具毁灭性的病害之一。发病迅速，可在短时间内造成大面积损失。发病适宜温度 15-22&deg;C，湿度 83% 以上。',
+    symptoms: ['叶片正面出现淡黄色不规则或多角形病斑','叶背病斑处有紫灰色霉层（孢子囊和孢囊梗）','湿度大时霉层明显，干燥时霉层消失病斑变黄枯','严重时叶片枯黄卷曲，植株早衰，瓜条发育不良'],
+    medicines: [
+      { name: '霜霉威', dosage: '72.2%水剂 800倍液', method: '发病初期喷雾，重点喷施叶片背面', period: '安全间隔期 7天' },
+      { name: '烯酰吗啉', dosage: '50%水分散粒剂 1500倍液', method: '与保护性杀菌剂轮换使用，内吸治疗', period: '安全间隔期 10天' },
+      { name: '氰霜唑', dosage: '10%悬浮剂 2000倍液', method: '预防性用药效果更好，持效期长', period: '安全间隔期 14天' }
+    ],
+    warnings: ['霜霉病传播极快，发现病株立即用药，不可拖延','重点喷施叶片背面，确保药液覆盖霉层部位','控制棚内湿度至70%以下，白天及时通风排湿','发病严重时可考虑高温闷棚辅助防治（45&deg;C维持2小时）','收获期注意农药安全间隔期，防止农残超标'],
+    similar: [{ name: '黄瓜细菌性角斑病', img: 'https://images.unsplash.com/photo-1561136594-7f68413baa99?w=100&h=100&fit=crop', conf: '10%' },{ name: '黄瓜白粉病', img: 'https://images.unsplash.com/photo-1561136594-7f68413baa99?w=100&h=100&fit=crop', conf: '3%' }]
+  },
+  pepper: {
+    name: '辣椒炭疽病', en: 'Colletotrichum spp. (Anthracnose)', confidence: 93,
+    desc: '辣椒炭疽病是由刺盘孢属真菌引起的病害，主要危害果实和叶片。高温多雨天气利于发病，是辣椒采收期的主要病害。发病适宜温度 12-33&deg;C，最适 27&deg;C，相对湿度 95% 以上。',
+    symptoms: ['果实上出现水渍状褐色圆形病斑，后期凹陷','病斑上有同心轮纹状排列的黑色小点（分生孢子盘）','叶片病斑圆形，中央灰白色，边缘褐色，有轮纹','潮湿时病斑产生橙红色粘稠状分生孢子团'],
+    medicines: [
+      { name: '咪鲜胺', dosage: '25%乳油 1000倍液', method: '发病初期喷施，果实和叶片均匀覆盖', period: '安全间隔期 14天' },
+      { name: '苯醚甲环唑', dosage: '10%水分散粒剂 1500倍液', method: '与咪鲜胺轮换使用，广谱高效', period: '安全间隔期 14天' },
+      { name: '嘧菌酯', dosage: '25%悬浮剂 1500倍液', method: '保护性+治疗性，持效期长', period: '安全间隔期 14天' }
+    ],
+    warnings: ['采收前严格掌握安全间隔期，防止采前施药','及时摘除病果和病叶，减少田间菌源基数','避免偏施氮肥，增施磷钾肥提高植株抗性','雨后及时排水，降低田间湿度，改善通风透光','种子消毒处理，选用抗病品种可有效预防'],
+    similar: [{ name: '辣椒疫病', img: 'https://images.unsplash.com/photo-1568569350062-ebfa3cb195df?w=100&h=100&fit=crop', conf: '5%' },{ name: '辣椒软腐病', img: 'https://images.unsplash.com/photo-1568569350062-ebfa3cb195df?w=100&h=100&fit=crop', conf: '2%' }]
+  },
+  eggplant: {
+    name: '茄子黄萎病', en: 'Verticillium dahliae (Verticillium Wilt)', confidence: 85,
+    desc: '茄子黄萎病是由大丽花轮枝孢菌引起的土传维管束病害，俗称"半边疯"。病菌在土壤中可存活 6-8 年，防治难度大，应以预防为主。发病适宜温度 20-25&deg;C。',
+    symptoms: ['发病初期叶片自下而上逐渐变黄，叶缘上卷','典型症状：植株半边叶片变黄枯萎，半边正常（半边疯）','维管束变褐，剖开茎基部可见褐色条纹','严重时整株萎蔫枯死，根系变褐腐烂'],
+    medicines: [
+      { name: '恶霉灵', dosage: '70%可湿性粉剂 3000倍液', method: '定植时灌根，每株 200-300ml', period: '安全间隔期 21天' },
+      { name: '甲基硫菌灵', dosage: '70%可湿性粉剂 500倍液', method: '发病初期灌根或喷雾，连用2-3次', period: '安全间隔期 15天' },
+      { name: '枯草芽孢杆菌', dosage: '100亿孢子/克 200倍液', method: '生物防治，定植时和生长期定期灌根', period: '安全间隔期 3天' }
+    ],
+    warnings: ['黄萎病为土传维管束病害，预防重于治疗','实行轮作，与十字花科或禾本科作物轮作3年以上','选用抗病品种和嫁接苗（托鲁巴姆砧木）是最有效方法','定植前土壤消毒，可用太阳能高温闷棚或棉隆处理','发现病株及时拔除，病穴用石灰消毒'],
+    similar: [{ name: '茄子青枯病', img: 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=100&h=100&fit=crop', conf: '12%' },{ name: '茄子枯萎病', img: 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=100&h=100&fit=crop', conf: '3%' }]
+  }
+};
+
+
+
+// =================== 水肥方案数据库 ===================
+const cropDB = {
+  tomato: {
+    name: '番茄',
+    img: 'https://images.unsplash.com/photo-1592841200221-a6898f307baa?w=80&h=80&fit=crop',
+    stages: ['苗期','开花期','结果期','采收期'],
+    data: {
+      '苗期': {
+        irrigation: { amount: '8-10m³', freq: '每5-7天', method: '滴灌', tip: '控水蹲苗，土壤相对湿度保持55-65%' },
+        fertilizers: [
+          { name: '大量元素水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 20-20-20', dosage: '3kg', dilute: '1:1000', method: '滴灌', note: '促根壮苗，平衡型配方' },
+          { name: '磷酸二氢钾', type: '叶面喷施', formula: 'P₂O₅-K₂O ≥ 98%', dosage: '50g', dilute: '1:500', method: '叶面喷施', note: '促根系发育，每10天一次' }
+        ],
+        soil: { ph: '6.5', phStatus: '适宜', om: '2.5%', omStatus: '良好', n: '160', nStatus: '中等', p: '55', pStatus: '丰富' },
+        warnings: ['苗期忌大水漫灌，坚持"见干见湿"原则','定植后7-10天浇缓苗水，浇透不积水','若叶片浓绿徒长，应控水控氮','夜间温度保持15-18℃，防徒长']
+      },
+      '开花期': {
+        irrigation: { amount: '12-15m³', freq: '每4-5天', method: '滴灌', tip: '第一穗果2-3cm时结束蹲苗，浇足膨果水' },
+        fertilizers: [
+          { name: '大量元素水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 18-12-22', dosage: '5kg', dilute: '1:800', method: '滴灌', note: '花芽分化期，增磷补钾' },
+          { name: '硼锌微量元素肥', type: '叶面喷施', formula: 'B+Zn ≥ 10%', dosage: '30g', dilute: '1:600', method: '早晚喷施', note: '保花保果，减少落花' }
+        ],
+        soil: { ph: '6.6', phStatus: '适宜', om: '2.3%', omStatus: '良好', n: '150', nStatus: '中等', p: '50', pStatus: '丰富' },
+        warnings: ['开花期保持土壤湿润，忌忽干忽湿','增施硼肥可有效提高坐果率','温度过高(>30℃)或过低(<15℃)影响授粉','及时整枝打杈，改善通风透光']
+      },
+      '结果期': {
+        irrigation: { amount: '10-12m³', freq: '每3-5天', method: '滴灌', tip: '盛果期土壤湿度保持80-85%，少量多次' },
+        fertilizers: [
+          { name: '高钾型水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 15-8-28', dosage: '6kg', dilute: '1:800', method: '滴灌', note: '膨果转色，高钾低氮' },
+          { name: '钙镁中微量元素', type: '叶面喷施', formula: 'Ca+Mg ≥ 15%', dosage: '40g', dilute: '1:500', method: '叶面喷施', note: '防脐腐病，提高果实硬度' }
+        ],
+        soil: { ph: '6.8', phStatus: '适宜', om: '2.1%', omStatus: '良好', n: '140', nStatus: '中等', p: '45', pStatus: '丰富' },
+        warnings: ['结果期是需肥高峰期，坚持"少量多次"','每穗果膨大期追施一次高钾肥','注意补钙防脐腐，尤其是幼果期','保持昼夜温差10℃以上，利于养分积累']
+      },
+      '采收期': {
+        irrigation: { amount: '8-10m³', freq: '每5-7天', method: '滴灌', tip: '采收前7天适当控水，提升糖酸比' },
+        fertilizers: [
+          { name: '高钾型水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 12-6-32', dosage: '4kg', dilute: '1:800', method: '滴灌', note: '提质增甜，促进转色' },
+          { name: '氨基酸叶面肥', type: '叶面喷施', formula: '氨基酸 ≥ 100g/L', dosage: '50ml', dilute: '1:400', method: '叶面喷施', note: '改善风味，提高商品性' }
+        ],
+        soil: { ph: '6.7', phStatus: '适宜', om: '2.0%', omStatus: '良好', n: '130', nStatus: '中等', p: '42', pStatus: '丰富' },
+        warnings: ['采收前严格控氮，防止果实返青','采收前7-10天停止施药，遵守安全间隔期','及时采收成熟果，促进后续果实发育','上部果膨大时仍需追肥，防植株早衰']
+      }
+    }
+  },
+  cucumber: {
+    name: '黄瓜',
+    img: 'https://images.unsplash.com/photo-1561136594-7f68413baa99?w=80&h=80&fit=crop',
+    stages: ['苗期','开花期','结瓜期','采收期'],
+    data: {
+      '苗期': {
+        irrigation: { amount: '6-8m³', freq: '每5-7天', method: '滴灌', tip: '轻浇缓苗水，表土见干见湿' },
+        fertilizers: [
+          { name: '大量元素水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 18-22-18', dosage: '2.5kg', dilute: '1:1000', method: '滴灌', note: '轻施提苗肥，偏高磷促根' },
+          { name: '腐殖酸水溶肥', type: '灌根', formula: '腐殖酸 ≥ 30g/L', dosage: '3kg', dilute: '1:600', method: '灌根', note: '促发新根，提高缓苗率' }
+        ],
+        soil: { ph: '6.4', phStatus: '适宜', om: '2.8%', omStatus: '良好', n: '155', nStatus: '中等', p: '60', pStatus: '丰富' },
+        warnings: ['黄瓜根系浅，苗期忌大水漫灌','定植时浇足定植水，3-5天后浇缓苗水','苗期适当控水防徒长，但不可过度干旱','注意夜间保温，地温18℃以上利于发根']
+      },
+      '开花期': {
+        irrigation: { amount: '10-12m³', freq: '每4-5天', method: '滴灌', tip: '初花期适当控水，坐瓜后逐渐增加' },
+        fertilizers: [
+          { name: '平衡型水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 18-18-18', dosage: '4kg', dilute: '1:800', method: '滴灌', note: '花瓜同旺，氮钾均衡供应' },
+          { name: '硼钼微肥', type: '叶面喷施', formula: 'B+Mo ≥ 8%', dosage: '25g', dilute: '1:600', method: '叶面喷施', note: '提高雌花率，促进授粉' }
+        ],
+        soil: { ph: '6.5', phStatus: '适宜', om: '2.6%', omStatus: '良好', n: '145', nStatus: '中等', p: '55', pStatus: '丰富' },
+        warnings: ['根瓜坐住前忌大水大肥，防徒长落花','及时引蔓绑蔓，保持田间通风透光','清晨授粉效果最佳，可辅以熊蜂授粉','注意防治霜霉病，控制棚内湿度<70%']
+      },
+      '结瓜期': {
+        irrigation: { amount: '12-15m³', freq: '每2-3天', method: '滴灌', tip: '盛瓜期需水量最大，保持土壤湿润' },
+        fertilizers: [
+          { name: '高钾型水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 16-8-26', dosage: '6kg', dilute: '1:800', method: '滴灌', note: '盛瓜期每7-10天追一次，采瓜后及时补肥' },
+          { name: '钙镁硼锌铁', type: '叶面喷施', formula: '中微量元素综合', dosage: '35g', dilute: '1:500', method: '叶面喷施', note: '防弯瓜、尖嘴瓜，提高瓜条直度' }
+        ],
+        soil: { ph: '6.6', phStatus: '适宜', om: '2.4%', omStatus: '良好', n: '135', nStatus: '中等', p: '50', pStatus: '丰富' },
+        warnings: ['盛瓜期"水肥齐攻"，每采收1-2次追肥一次','忌偏施氮肥，否则瓜条变长、品质下降','注意补充钙肥，防止瓜顶腐烂','及时摘除下部老叶病叶，减少养分消耗']
+      },
+      '采收期': {
+        irrigation: { amount: '10-12m³', freq: '每3-4天', method: '滴灌', tip: '养根护秧，防止植株早衰' },
+        fertilizers: [
+          { name: '平衡型水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 18-10-22', dosage: '5kg', dilute: '1:800', method: '滴灌', note: '兼顾营养生长与生殖生长' },
+          { name: '海藻酸叶面肥', type: '叶面喷施', formula: '海藻酸 ≥ 20g/L', dosage: '40ml', dilute: '1:400', method: '叶面喷施', note: '养根护叶，延长采收期' }
+        ],
+        soil: { ph: '6.5', phStatus: '适宜', om: '2.2%', omStatus: '良好', n: '140', nStatus: '中等', p: '48', pStatus: '丰富' },
+        warnings: ['中后期注意养根，可配合微生物菌剂','及时采收商品瓜，减少植株负担','发现白粉病、霜霉病及时防治','拉秧前20天停止追肥']
+      }
+    }
+  },
+  pepper: {
+    name: '辣椒',
+    img: 'https://images.unsplash.com/photo-1568569350062-ebfa3cb195df?w=80&h=80&fit=crop',
+    stages: ['苗期','开花期','果期','采收期'],
+    data: {
+      '苗期': {
+        irrigation: { amount: '6-8m³', freq: '每5-7天', method: '滴灌', tip: '轻浇勤浇，保持土壤微润' },
+        fertilizers: [
+          { name: '大量元素水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 18-22-15', dosage: '2kg', dilute: '1:1000', method: '滴灌', note: '轻施薄施，偏高磷促根' },
+          { name: '生根型水溶肥', type: '灌根', formula: '腐殖酸+生根剂', dosage: '2.5kg', dilute: '1:800', method: '灌根', note: '促根系发达，提高定植成活率' }
+        ],
+        soil: { ph: '6.3', phStatus: '适宜', om: '2.4%', omStatus: '良好', n: '150', nStatus: '中等', p: '58', pStatus: '丰富' },
+        warnings: ['辣椒根系弱，苗期切忌大水漫灌','定植水浇透，缓苗水轻浇','苗期适当控水可促进花芽分化','注意防寒保温，地温低于13℃不发根']
+      },
+      '开花期': {
+        irrigation: { amount: '8-10m³', freq: '每4-6天', method: '滴灌', tip: '花期控水防落花，门椒坐住后逐渐增加' },
+        fertilizers: [
+          { name: '平衡型水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 17-15-20', dosage: '4kg', dilute: '1:800', method: '滴灌', note: '氮钾并重，促进花果发育' },
+          { name: '硼锌微肥', type: '叶面喷施', formula: 'B+Zn ≥ 10%', dosage: '30g', dilute: '1:500', method: '叶面喷施', note: '提高坐果率，减少落花落果' }
+        ],
+        soil: { ph: '6.5', phStatus: '适宜', om: '2.2%', omStatus: '良好', n: '140', nStatus: '中等', p: '52', pStatus: '丰富' },
+        warnings: ['门椒坐住前严控水肥，防徒长落花','温度过高(>35℃)或过低(<10℃)易落花','花期棚内湿度控制在60-70%','及时整枝，去除门椒以下侧枝']
+      },
+      '果期': {
+        irrigation: { amount: '10-12m³', freq: '每3-5天', method: '滴灌', tip: '果实膨大期需水需肥量增大' },
+        fertilizers: [
+          { name: '高钾型水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 14-8-28', dosage: '5.5kg', dilute: '1:800', method: '滴灌', note: '膨果着色，提高辣度和色泽' },
+          { name: '钙镁微肥', type: '叶面喷施', formula: 'Ca+Mg ≥ 12%', dosage: '35g', dilute: '1:500', method: '叶面喷施', note: '防日灼病，提高果皮韧性' }
+        ],
+        soil: { ph: '6.6', phStatus: '适宜', om: '2.0%', omStatus: '良好', n: '130', nStatus: '中等', p: '48', pStatus: '丰富' },
+        warnings: ['辣椒喜钾肥，果期钾肥用量应占总肥量40%以上','注意补充钙肥，预防脐腐病和日灼病','保持土壤湿润均匀，忌忽干忽湿','及时采收青椒或红椒，促进后续结果']
+      },
+      '采收期': {
+        irrigation: { amount: '8-10m³', freq: '每4-6天', method: '滴灌', tip: '中后期养根护叶，延长采收' },
+        fertilizers: [
+          { name: '高钾型水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 12-8-30', dosage: '4.5kg', dilute: '1:800', method: '滴灌', note: '维持植株活力，保证后期产量' },
+          { name: '磷酸二氢钾', type: '叶面喷施', formula: 'P₂O₅-K₂O ≥ 98%', dosage: '40g', dilute: '1:400', method: '叶面喷施', note: '养叶防早衰，每7天一次' }
+        ],
+        soil: { ph: '6.5', phStatus: '适宜', om: '1.9%', omStatus: '良好', n: '125', nStatus: '中等', p: '45', pStatus: '丰富' },
+        warnings: ['辣椒采收期长，需持续供肥防早衰','采红椒可在果实转色期适当控水','后期注意病毒病、根腐病防治','拉秧前15天停止施肥']
+      }
+    }
+  },
+  eggplant: {
+    name: '茄子',
+    img: 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=80&h=80&fit=crop',
+    stages: ['苗期','开花期','果期','采收期'],
+    data: {
+      '苗期': {
+        irrigation: { amount: '7-9m³', freq: '每5-7天', method: '滴灌', tip: '轻浇缓苗水，表土发白再浇' },
+        fertilizers: [
+          { name: '大量元素水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 18-20-18', dosage: '2.5kg', dilute: '1:1000', method: '滴灌', note: '轻施提苗，促根壮秧' },
+          { name: '氨基酸水溶肥', type: '灌根', formula: '氨基酸 ≥ 80g/L', dosage: '3kg', dilute: '1:600', method: '灌根', note: '增强抗性，促发新根' }
+        ],
+        soil: { ph: '6.5', phStatus: '适宜', om: '2.6%', omStatus: '良好', n: '158', nStatus: '中等', p: '56', pStatus: '丰富' },
+        warnings: ['茄子根系木栓化早，苗期保护好根系','定植时带土坨，减少伤根','苗期控水可促进根系下扎','注意地温保持在15℃以上']
+      },
+      '开花期': {
+        irrigation: { amount: '10-12m³', freq: '每4-5天', method: '滴灌', tip: '门茄坐住后结束蹲苗，逐渐增加水肥' },
+        fertilizers: [
+          { name: '平衡型水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 18-15-20', dosage: '4.5kg', dilute: '1:800', method: '滴灌', note: '均衡供应，促进花果发育' },
+          { name: '硼锌微肥', type: '叶面喷施', formula: 'B+Zn ≥ 10%', dosage: '28g', dilute: '1:600', method: '叶面喷施', note: '提高坐果率，防止落花' }
+        ],
+        soil: { ph: '6.6', phStatus: '适宜', om: '2.4%', omStatus: '良好', n: '148', nStatus: '中等', p: '52', pStatus: '丰富' },
+        warnings: ['门茄坐住前控水控肥，防徒长','及时整枝打叶，保持通风透光','茄子喜光，弱光易落花','注意防治红蜘蛛、蓟马']
+      },
+      '果期': {
+        irrigation: { amount: '12-14m³', freq: '每3-4天', method: '滴灌', tip: '盛果期水肥需求最大，保持土壤湿润' },
+        fertilizers: [
+          { name: '高钾型水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 15-8-28', dosage: '6kg', dilute: '1:800', method: '滴灌', note: '促果实膨大，提高光泽度' },
+          { name: '钙硼微肥', type: '叶面喷施', formula: 'Ca+B ≥ 12%', dosage: '35g', dilute: '1:500', method: '叶面喷施', note: '防果顶开裂，提高商品性' }
+        ],
+        soil: { ph: '6.7', phStatus: '适宜', om: '2.2%', omStatus: '良好', n: '138', nStatus: '中等', p: '48', pStatus: '丰富' },
+        warnings: ['茄子需肥量大，盛果期每7-10天追肥一次','及时摘除门茄和对茄，促进四门斗茄发育','注意补充钙肥，防止果顶腐烂','高温季节注意遮阴降温，防日灼']
+      },
+      '采收期': {
+        irrigation: { amount: '10-12m³', freq: '每4-5天', method: '滴灌', tip: '养根护秧，延长采收期可达2-3个月' },
+        fertilizers: [
+          { name: '平衡型水溶肥', type: '追肥', formula: 'N-P₂O₅-K₂O = 16-10-24', dosage: '5kg', dilute: '1:800', method: '滴灌', note: '兼顾营养与生殖生长平衡' },
+          { name: '海藻酸+微量元素', type: '叶面喷施', formula: '综合营养型', dosage: '45ml', dilute: '1:400', method: '叶面喷施', note: '防早衰，维持叶片功能' }
+        ],
+        soil: { ph: '6.6', phStatus: '适宜', om: '2.0%', omStatus: '良好', n: '135', nStatus: '中等', p: '46', pStatus: '丰富' },
+        warnings: ['茄子采收期长，需持续供肥','及时采收达到商品标准的果实','中后期加强疫病、青枯病防治','拉秧前20天停止追肥']
+      }
+    }
+  },
+  rice: {
+    name: '水稻',
+    img: 'https://images.unsplash.com/photo-1536617621572-1d5f1e6269a0?w=80&h=80&fit=crop',
+    stages: ['苗期','分蘖期','拔节孕穗期','灌浆期'],
+    data: {
+      '苗期': {
+        irrigation: { amount: '薄水层', freq: '保持湿润', method: '漫灌', tip: '浅水勤灌，保水保肥促分蘖' },
+        fertilizers: [
+          { name: '尿素', type: '追肥', formula: 'N ≥ 46%', dosage: '5kg', dilute: '撒施', method: '撒施', note: '促分蘖肥，看苗施肥' },
+          { name: '磷酸二铵', type: '基肥', formula: 'N-P₂O₅ = 18-46', dosage: '8kg', dilute: '撒施', method: '撒施', note: '培育壮秧，磷肥为主' }
+        ],
+        soil: { ph: '5.8', phStatus: '偏酸', om: '3.2%', omStatus: '丰富', n: '120', nStatus: '中等', p: '35', pStatus: '中等' },
+        warnings: ['水稻苗期保持浅水层，切忌断水','若叶色偏淡、长势弱，适量追施分蘖肥','注意防治稻瘟病、纹枯病','及时除草，保持田间清洁']
+      },
+      '分蘖期': {
+        irrigation: { amount: '浅水层3-5cm', freq: '持续保持', method: '漫灌', tip: '浅水促蘖，够苗及时晒田' },
+        fertilizers: [
+          { name: '尿素', type: '追肥', formula: 'N ≥ 46%', dosage: '7kg', dilute: '撒施', method: '撒施', note: '主攻分蘖，促早生快发' },
+          { name: '氯化钾', type: '追肥', formula: 'K₂O ≥ 60%', dosage: '5kg', dilute: '撒施', method: '撒施', note: '壮秆抗倒，提高分蘖成穗率' }
+        ],
+        soil: { ph: '5.9', phStatus: '偏酸', om: '3.0%', omStatus: '丰富', n: '135', nStatus: '中等', p: '38', pStatus: '中等' },
+        warnings: ['分蘖期是施肥关键期，早施促蘖肥','当亩茎蘖数达计划穗数80%时及时晒田','晒田要晒透，控制无效分蘖','注意防治稻飞虱、螟虫']
+      },
+      '拔节孕穗期': {
+        irrigation: { amount: '浅水至湿润', freq: '间歇灌溉', method: '漫灌', tip: '保花增穗，水分敏感临界期' },
+        fertilizers: [
+          { name: '尿素', type: '追肥', formula: 'N ≥ 46%', dosage: '6kg', dilute: '撒施', method: '撒施', note: '穗肥，促大穗多花' },
+          { name: '氯化钾', type: '追肥', formula: 'K₂O ≥ 60%', dosage: '4kg', dilute: '撒施', method: '撒施', note: '壮秆防倒，提高千粒重' }
+        ],
+        soil: { ph: '6.0', phStatus: '适宜', om: '2.8%', omStatus: '良好', n: '145', nStatus: '中等', p: '40', pStatus: '中等' },
+        warnings: ['拔节孕穗期是需肥高峰期，重施穗肥','此期缺水将严重影响颖花分化','注意防治稻曲病、稻瘟病','抽穗前15天停止施用氮肥']
+      },
+      '灌浆期': {
+        irrigation: { amount: '干湿交替', freq: '间歇灌溉', method: '漫灌', tip: '养根护叶，干湿交替灌浆' },
+        fertilizers: [
+          { name: '磷酸二氢钾', type: '叶面喷施', formula: 'P₂O₅-K₂O ≥ 98%', dosage: '100g', dilute: '1:300', method: '叶面喷施', note: '根外追肥，防早衰增粒重' },
+          { name: '尿素', type: '叶面喷施', formula: 'N ≥ 46%', dosage: '50g', dilute: '1:500', method: '叶面喷施', note: '保叶功能，延长光合时间' }
+        ],
+        soil: { ph: '6.0', phStatus: '适宜', om: '2.6%', omStatus: '良好', n: '130', nStatus: '中等', p: '42', pStatus: '中等' },
+        warnings: ['灌浆期保持土壤湿润，忌断水过早','齐穗后根外追肥1-2次，提高千粒重','蜡熟期逐渐排水晒田，利于收割','注意防治稻飞虱、纹枯病，保功能叶']
+      }
+    }
+  }
+};
+
+let currentCrop = 'tomato';
+let currentStage = '开花期';
+
+function renderCropSelector() {
+  const container = document.getElementById('cropSelector');
+  let html = '';
+  for (const [key, crop] of Object.entries(cropDB)) {
+    const isActive = key === currentCrop;
+    html += `<div class="shrink-0 rounded-xl p-3 border-2 text-center min-w-[80px] cursor-pointer transition-all btn-press ${isActive ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-400' : 'bg-gray-50 border-transparent opacity-60'}" onclick="selectCrop('${key}')">` +
+            `<img src="${crop.img}" class="w-12 h-12 rounded-full object-cover mx-auto mb-2">` +
+            `<p class="text-xs font-bold ${isActive ? 'text-green-700' : 'text-gray-600'}">${crop.name}</p></div>`;
+  }
+  container.innerHTML = html;
+}
+
+function renderStageSelector() {
+  const container = document.getElementById('stageSelector');
+  const crop = cropDB[currentCrop];
+  let html = '';
+  for (const stage of crop.stages) {
+    const isActive = stage === currentStage;
+    html += `<span class="tag cursor-pointer transition-all ${isActive ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-600 border border-gray-200'}" onclick="selectStage('${stage}')">${stage}</span>`;
+  }
+  container.innerHTML = html;
+}
+
+function renderFertilizerPlan() {
+  const crop = cropDB[currentCrop];
+  const data = crop.data[currentStage];
+  if (!data) return;
+
+  // 灌溉策略
+  document.getElementById('irrigationPlan').innerHTML =
+    `<div class="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-4 border border-cyan-100">` +
+    `<div class="flex items-center justify-between mb-2"><span class="text-sm font-bold text-cyan-800">灌溉策略</span><span class="tag bg-cyan-100 text-cyan-700">${data.irrigation.method}</span></div>` +
+    `<div class="grid grid-cols-3 gap-2 text-center mb-3"><div class="bg-white/60 rounded-lg p-2"><p class="text-lg font-bold text-cyan-700">${data.irrigation.amount}</p><p class="text-[10px] text-cyan-600">单次用量</p></div>` +
+    `<div class="bg-white/60 rounded-lg p-2"><p class="text-lg font-bold text-cyan-700">${data.irrigation.freq}</p><p class="text-[10px] text-cyan-600">灌溉频率</p></div>` +
+    `<div class="bg-white/60 rounded-lg p-2"><p class="text-lg font-bold text-cyan-700">${data.irrigation.method}</p><p class="text-[10px] text-cyan-600">灌溉方式</p></div></div>` +
+    `<p class="text-xs text-cyan-700"><i class="fas fa-lightbulb mr-1"></i>${data.irrigation.tip}</p></div>`;
+
+  // 肥料方案
+  let fertHtml = '';
+  const colors = ['blue','green'];
+  data.fertilizers.forEach((f, i) => {
+    const c = colors[i % 2];
+    const bg = c === 'blue' ? 'from-blue-50 to-indigo-50 border-blue-100' : 'from-green-50 to-emerald-50 border-green-100';
+    const txt = c === 'blue' ? 'blue' : 'green';
+    fertHtml += `<div class="bg-gradient-to-r ${bg} rounded-xl p-4 border">` +
+      `<div class="flex items-center justify-between mb-2"><span class="text-sm font-bold text-${txt}-800">${f.name}</span><span class="tag bg-${txt}-100 text-${txt}-700">${f.type}</span></div>` +
+      `<p class="text-xs text-${txt}-700 mb-3">配方：${f.formula}</p>` +
+      `<div class="grid grid-cols-3 gap-2 text-center"><div class="bg-white/60 rounded-lg p-2"><p class="text-lg font-bold text-${txt}-700">${f.dosage}</p><p class="text-[10px] text-${txt}-600">每亩用量</p></div>` +
+      `<div class="bg-white/60 rounded-lg p-2"><p class="text-lg font-bold text-${txt}-700">${f.dilute}</p><p class="text-[10px] text-${txt}-600">稀释倍数</p></div>` +
+      `<div class="bg-white/60 rounded-lg p-2"><p class="text-lg font-bold text-${txt}-700">${f.method}</p><p class="text-[10px] text-${txt}-600">施用方式</p></div></div>` +
+      `<p class="text-xs text-${txt}-600 mt-2"><i class="fas fa-circle-info mr-1"></i>${f.note}</p></div>`;
+  });
+  document.getElementById('fertilizerList').innerHTML = fertHtml;
+
+  // 土壤数据
+  const s = data.soil;
+  document.getElementById('soilData').innerHTML =
+    `<div class="bg-gray-50 rounded-xl p-3 text-center"><p class="text-2xl font-bold text-gray-800">${s.ph}</p><p class="text-xs text-gray-500 mt-1">pH值 <span class="text-green-600">${s.phStatus}</span></p></div>` +
+    `<div class="bg-gray-50 rounded-xl p-3 text-center"><p class="text-2xl font-bold text-gray-800">${s.om}</p><p class="text-xs text-gray-500 mt-1">有机质 <span class="text-green-600">${s.omStatus}</span></p></div>` +
+    `<div class="bg-gray-50 rounded-xl p-3 text-center"><p class="text-2xl font-bold text-gray-800">${s.n}</p><p class="text-xs text-gray-500 mt-1">碱解氮(mg/kg) <span class="text-yellow-600">${s.nStatus}</span></p></div>` +
+    `<div class="bg-gray-50 rounded-xl p-3 text-center"><p class="text-2xl font-bold text-gray-800">${s.p}</p><p class="text-xs text-gray-500 mt-1">有效磷(mg/kg) <span class="text-green-600">${s.pStatus}</span></p></div>`;
+
+  // 注意事项
+  document.getElementById('warningList').innerHTML = data.warnings.map(w =>
+    `<li class="flex items-start gap-2"><i class="fas fa-triangle-exclamation text-amber-500 mt-0.5 text-[10px]"></i><span class="text-xs text-amber-700">${w}</span></li>`
+  ).join('');
+}
+
+function selectCrop(cropKey) {
+  currentCrop = cropKey;
+  currentStage = cropDB[cropKey].stages[1] || cropDB[cropKey].stages[0]; // 默认选开花期或第一个
+  renderCropSelector();
+  renderStageSelector();
+  renderFertilizerPlan();
+}
+
+function selectStage(stage) {
+  currentStage = stage;
+  renderStageSelector();
+  renderFertilizerPlan();
+}
+
+let currentDisease = null;
+let currentImg = '';
+
+function selectDemo(type) {
+  currentDisease = diseaseDB[type];
+  const demoEl = document.querySelectorAll('[onclick^="selectDemo"]');
+  for (let el of demoEl) {
+    if (el.getAttribute('onclick').includes("'"+type+"'")) { currentImg = el.querySelector('img').src; break; }
+  }
+  startAnalyzing();
+}
+function handleFileSelect(event) {
+  const file = event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      currentImg = e.target.result;
+      const keys = Object.keys(diseaseDB);
+      currentDisease = diseaseDB[keys[Math.floor(Math.random() * keys.length)]];
+      startAnalyzing();
+    };
+    reader.readAsDataURL(file);
+  }
+}
+function handleCamera() {
+  document.getElementById('fileInput').setAttribute('capture', 'environment');
+  document.getElementById('fileInput').click();
+  document.getElementById('fileInput').removeAttribute('capture');
+}
+function startAnalyzing() {
+  goPage('page-analyzing');
+  document.getElementById('analyzingImg').src = currentImg;
+  const lbl = document.getElementById('progressLabel');
+  if(lbl) lbl.textContent = '图像预处理';
+  let progress = 0;
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const steps = document.querySelectorAll('#analysisSteps [data-step]');
+  const interval = setInterval(() => {
+    progress += Math.random() * 15 + 5;
+    if (progress > 100) progress = 100;
+    progressBar.style.width = progress + '%';
+    progressText.textContent = Math.floor(progress) + '%';
+    if (progress >= 25) markStep(1);
+    if (progress >= 50) markStep(2);
+    if (progress >= 75) markStep(3);
+    if (progress >= 95) markStep(4);
+    if (progress >= 100) { clearInterval(interval); setTimeout(() => showResult(), 500); }
+  }, 400);
+  function markStep(n) {
+    const step = document.querySelector('[data-step="' + n + '"]');
+    if (step && !step.classList.contains('text-green-400')) {
+      step.classList.remove('text-gray-500'); step.classList.add('text-green-400');
+      step.querySelector('div').classList.remove('border-gray-700'); step.querySelector('div').classList.add('border-green-400', 'bg-green-400/20');
+      step.querySelector('i').classList.remove('opacity-0');
+    }
+  }
+}
+function showResult() {
+  goPage('page-result');
+  document.getElementById('resultImg').src = currentImg;
+  document.getElementById('diseaseName').textContent = currentDisease.name;
+  document.getElementById('diseaseEn').textContent = currentDisease.en;
+  document.getElementById('diseaseDesc').textContent = currentDisease.desc;
+  const conf = currentDisease.confidence;
+  document.getElementById('confidenceBar').style.width = conf + '%';
+  document.getElementById('confidenceBar').className = 'h-full rounded-full transition-all duration-1000 ' + (conf >= 90 ? 'bg-green-500' : conf >= 80 ? 'bg-yellow-500' : 'bg-orange-500');
+  document.getElementById('confidenceText').textContent = conf + '%';
+  const symptomsList = document.getElementById('symptomsList');
+  symptomsList.innerHTML = currentDisease.symptoms.map(s => '<div class="flex items-start gap-2"><div class="w-1.5 h-1.5 bg-green-400 rounded-full mt-1.5 shrink-0"></div><p class="text-xs text-gray-600">' + s + '</p></div>').join('');
+  const similarCases = document.getElementById('similarCases');
+  similarCases.innerHTML = currentDisease.similar.map(s => '<div class="shrink-0 text-center"><img src="' + s.img + '" class="w-16 h-16 rounded-lg object-cover mb-1"><p class="text-xs text-gray-600">' + s.name + '</p><p class="text-xs text-gray-400">' + s.conf + '</p></div>').join('');
+  const medicineList = document.getElementById('medicineList');
+  medicineList.innerHTML = currentDisease.medicines.map((m, i) => '<div class="bg-gray-50 rounded-xl p-3.5"><div class="flex items-center gap-2 mb-2"><span class="w-5 h-5 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold">' + (i+1) + '</span><span class="font-medium text-gray-800 text-sm">' + m.name + '</span></div><div class="space-y-1 ml-7"><p class="text-xs text-gray-600"><span class="text-gray-400">剂量：</span>' + m.dosage + '</p><p class="text-xs text-gray-600"><span class="text-gray-400">用法：</span>' + m.method + '</p><p class="text-xs text-gray-600"><span class="text-gray-400">安全期：</span>' + m.period + '</p></div></div>').join('');
+  const warningsList = document.getElementById('warningsList');
+  warningsList.innerHTML = currentDisease.warnings.map(w => '<li>' + w + '</li>').join('');
+  document.getElementById('expertImg').src = currentImg;
+  document.getElementById('expertDisease').textContent = currentDisease.name;
+  document.getElementById('expertConfidence').textContent = currentDisease.confidence + '%';
+}
+function submitExpert() {
+  const now = new Date();
+  document.getElementById('submitTime').textContent = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  goPage('page-success');
+}
+function doWikiSearch() {
+  const q = document.getElementById('wikiSearchInput').value.trim();
+  if (!q) { showToast('请输入搜索关键词'); return; }
+  const url = 'https://www.baidu.com/s?wd=' + encodeURIComponent(q);
+  window.open(url, '_blank');
+}
+function wikiQuickSearch(keyword) {
+  document.getElementById('wikiSearchInput').value = keyword;
+  const url = 'https://www.baidu.com/s?wd=' + encodeURIComponent(keyword);
+  window.open(url, '_blank');
+}
+</script>
+</body>
+</html>
